@@ -1,20 +1,22 @@
-#    Back In Time
-#    Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey,
-#    Germar Reitze, Taylor Raack
+"""Collection of helper functions not fitting to other modules.
+"""
+# Back In Time
+# Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey,
+# Germar Reitze, Taylor Raack
 #
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import os
 import sys
 import pathlib
@@ -36,17 +38,30 @@ import atexit
 from datetime import datetime
 from packaging.version import Version
 from time import sleep
-keyring = None
-keyring_warn = False
+
+import logger
+
+# Try to import keyring
+is_keyring_available = False
 try:
+    # Jan 4, 2024 aryoda: The env var BIT_USE_KEYRING is neither documented
+    #                     anywhere nor used at all in the code.
+    #                     Via "git blame" I have found a commit message saying:
+    #                     "block subsequent 'import keyring' if it failed once"
+    #                     So I assume it is an internal temporary env var only.
+    # Note: os.geteuid() is used instead of tools.isRoot() here
+    #       because the latter is still not available here in the global
+    #       module code.
     if os.getenv('BIT_USE_KEYRING', 'true') == 'true' and os.geteuid() != 0:
         import keyring
         from keyring import backend
         import keyring.util.platform_
-except:
-    keyring = None
+        is_keyring_available = True
+except Exception as e:
+    is_keyring_available = False
+    # block subsequent 'import keyring' if it failed once before
     os.putenv('BIT_USE_KEYRING', 'false')
-    keyring_warn = True
+    logger.warning(f"'import keyring' failed with: {repr(e)}")
 
 # getting dbus imports to work in Travis CI is a huge pain
 # use conditional dbus import
@@ -57,13 +72,12 @@ try:
     import dbus
 except ImportError:
     if ON_TRAVIS or ON_RTD:
-        #python-dbus doesn't work on Travis yet.
+        # python-dbus doesn't work on Travis yet.
         dbus = None
     else:
         raise
 
 import configfile
-import logger
 import bcolors
 from applicationinstance import ApplicationInstance
 from exceptions import Timeout, InvalidChar, InvalidCmd, LimitExceeded, PermissionDeniedByPolicy
@@ -79,10 +93,11 @@ DISK_BY_UUID = '/dev/disk/by-uuid'
 def sharePath():
     """Get path where Back In Time is installed.
 
+    This is similar to $XDG_DATA_DIRS (XDG Base Directory Specification).
     If running from source return default ``/usr/share``.
 
     Returns:
-        str:    share path like::
+        str: share path like::
 
                     /usr/share
                     /usr/local/share
@@ -96,6 +111,46 @@ def sharePath():
         return share
 
     return '/usr/share'
+
+
+def backintimePath(*path):
+    """
+    Get path inside 'backintime' install folder.
+
+    Args:
+        *path (str):    paths that should be joined to 'backintime'
+
+    Returns:
+        str:            'backintime' child path like::
+
+                            /usr/share/backintime/common
+                            /usr/share/backintime/qt
+    """
+    return os.path.abspath(os.path.join(__file__, os.pardir, os.pardir, *path))
+
+
+def docPath():
+    """Not sure what this path is about.
+    """
+    path = pathlib.Path(sharePath()) / 'doc' / 'backintime-common'
+
+    # Dev note (buhtz, aryoda, 2024-02):
+    # This piece of code originally resisted in Config.__init__() and was
+    # introduced by Dan in 2008. The reason for the existence of this "if"
+    # is unclear.
+
+    # Makefile (in common) does only install into share/doc/backintime-common
+    # but never into the the backintime "binary" path so I guess the if is
+    # a) either a distro-specific exception for a distro package that
+    # (manually?) installs the LICENSE into another path
+    # b) or a left-over from old code where the LICENSE was installed
+    # differently...
+
+    license_file = pathlib.Path(backintimePath()) / 'LICENSE'
+    if license_file.exists():
+        path = backintimePath()
+
+    return str(path)
 
 
 # |---------------------------------------------------|
@@ -283,22 +338,6 @@ def get_native_language_and_completeness(language_code):
 # |------------------------------------|
 # | Miscellaneous, not categorized yet |
 # |------------------------------------|
-
-def backintimePath(*path):
-    """
-    Get path inside 'backintime' install folder.
-
-    Args:
-        *path (str):    paths that should be joined to 'backintime'
-
-    Returns:
-        str:            'backintime' child path like::
-
-                            /usr/share/backintime/common
-                            /usr/share/backintime/qt
-    """
-    return os.path.abspath(os.path.join(__file__, os.pardir, os.pardir, *path))
-
 def registerBackintimePath(*path):
     """
     Add BackInTime path ``path`` to :py:data:`sys.path` so subsequent imports
@@ -312,17 +351,24 @@ def registerBackintimePath(*path):
         would need this to actually import :py:mod:`tools`.
     """
     path = backintimePath(*path)
-    if not path in sys.path:
+
+    if path not in sys.path:
         sys.path.insert(0, path)
 
+
 def runningFromSource():
-    """
-    Check if BackInTime is running from source (without installing).
+    """Check if BackInTime is running from source (without installing).
+
+    Dev notes by buhtz (2024-04): This function is dangerous and will give a
+    false-negative in fake filesystems (e.g. PyFakeFS). The function should
+    not exist. Beside unit tests it is used only two times. Remove it until
+    migration to pyproject.toml based project packaging (#1575).
 
     Returns:
-        bool:   ``True`` if BackInTime is running from source
+        bool: ``True`` if BackInTime is running from source.
     """
     return os.path.isfile(backintimePath('common', 'backintime'))
+
 
 def addSourceToPathEnviron():
     """
@@ -331,40 +377,61 @@ def addSourceToPathEnviron():
     source = backintimePath('common')
     path = os.getenv('PATH')
     if path and source not in path.split(':'):
-        os.environ['PATH'] = '%s:%s' %(source, path)
+        os.environ['PATH'] = '%s:%s' % (source, path)
 
-def gitRevisionAndHash():
-    """
-    Get the current Git Branch and the last HashID (shot form) if running
-    from source.
+
+def get_git_repository_info(path=None, hash_length=None):
+    """Return the current branch and last commit hash.
+
+    About the length of a commit hash. There is no strict rule but it is
+    common sense that 8 to 10 characters are enough to be unique.
+
+    Credits: https://stackoverflow.com/a/51224861/4865723
+
+    Args:
+        path (Path): Path with '.git' folder in (default is
+                     current working directory).
+        cut_hash (int): Restrict length of commit hash.
 
     Returns:
-        tuple:  two items of either :py:class:`str` instance if running from
-                source or ``None``
+        (dict): Dict with keys "branch" and "hash" if it is a git repo,
+                otherwise an `None`.
     """
-    ref, hashid = None, None
-    gitPath = os.path.abspath(os.path.join(__file__, os.pardir, os.pardir, '.git'))
-    headPath = os.path.join(gitPath, 'HEAD')
-    refPath = ''
-    if not os.path.isdir(gitPath):
-        return (ref, hashid)
-    try:
-        with open(headPath, 'rt') as f:
-            refPath = f.read().strip('\n')
-            if refPath.startswith('ref: '):
-                refPath = refPath[5:]
-            if refPath:
-                refPath = os.path.join(gitPath, refPath)
-                ref = os.path.basename(refPath)
-    except Exception as e:
-        pass
-    if os.path.isfile(refPath):
-        try:
-            with open(refPath, 'rt') as f:
-                hashid = f.read().strip('\n')[:7]
-        except:
-            pass
-    return (ref, hashid)
+
+    if not path:
+        # Default is current working dir
+        path = pathlib.Path.cwd()
+    elif isinstance(path, str):
+        # WORKAROUND until cmoplete migration to pathlib
+        path = pathlib.Path(path)
+
+    git_folder = path / '.git'
+
+    if not git_folder.exists():
+        return None
+
+    result = {}
+
+    # branch name
+    with (git_folder / 'HEAD').open('r') as handle:
+        val = handle.read()
+
+    if not val.startswith('ref: '):
+        result['branch'] = '(detached HEAD)'
+        result['hash'] = val
+
+    else:
+        result['branch'] = '/'.join(val.split('/')[2:]).strip()
+
+        # commit hash
+        with (git_folder / 'refs' / 'heads' / result['branch']) \
+            .open('r') as handle:
+            result['hash'] = handle.read().strip()
+
+    if hash_length:
+        result['hash'] = result['hash'][:hash_length]
+
+    return result
 
 
 def readFile(path, default=None):
@@ -428,15 +495,15 @@ def readFileLines(path, default = None):
 
     return ret_val
 
+
 def checkCommand(cmd):
-    """
-    Check if command ``cmd`` is a file in 'PATH' environ.
+    """Check if command ``cmd`` is a file in 'PATH' environment.
 
     Args:
-        cmd (str):  command
+        cmd (str): The command.
 
     Returns:
-        bool:       ``True`` if command ``cmd`` is in 'PATH' environ
+        bool: ``True`` if ``cmd`` is in 'PATH' environment otherwise ``False``.
     """
     cmd = cmd.strip()
 
@@ -445,30 +512,41 @@ def checkCommand(cmd):
 
     if os.path.isfile(cmd):
         return True
-    return not which(cmd) is None
 
+    return which(cmd) is not None
+
+  
 def which(cmd):
-    """
-    Get the fullpath of executable command ``cmd``. Works like
-    command-line 'which' command.
+    """Get the fullpath of executable command ``cmd``.
+
+    Works like command-line 'which' command.
+
+    Dev note by buhtz (2024-04): Give false-negative results in fake
+    filesystems. Quit often use in the whole code base. But not sure why
+    can we replace it with "which" from shell?
 
     Args:
-        cmd (str):  command
+        cmd (str): The command.
 
     Returns:
-        str:        fullpath of command ``cmd`` or ``None`` if command is
-                    not available
+        str: Fullpath of command ``cmd`` or ``None`` if command is not
+             available.
     """
     pathenv = os.getenv('PATH', '')
-    path = pathenv.split(":")
+    path = pathenv.split(':')
     common = backintimePath('common')
+
     if runningFromSource() and common not in path:
         path.insert(0, common)
+
     for directory in path:
         fullpath = os.path.join(directory, cmd)
+
         if os.path.isfile(fullpath) and os.access(fullpath, os.X_OK):
             return fullpath
+
     return None
+
 
 def makeDirs(path):
     """
@@ -486,15 +564,19 @@ def makeDirs(path):
 
     if os.path.isdir(path):
         return True
+
     else:
+
         try:
             os.makedirs(path)
         except Exception as e:
             logger.error("Failed to make dirs '%s': %s"
-                         %(path, str(e)), traceDepth = 1)
+                         % (path, str(e)), traceDepth=1)
+
     return os.path.isdir(path)
 
-def mkdir(path, mode = 0o755, enforce_permissions = True):
+
+def mkdir(path, mode=0o755, enforce_permissions=True):
     """
     Create directory ``path``.
 
@@ -511,14 +593,18 @@ def mkdir(path, mode = 0o755, enforce_permissions = True):
                 os.chmod(path, mode)
         except:
             return False
+
         return True
+
     else:
         os.mkdir(path, mode)
+
         if mode & 0o002 == 0o002:
-            #make file world (other) writable was requested
-            #debian and ubuntu won't set o+w with os.mkdir
-            #this will fix it
+            # make file world (other) writable was requested
+            # debian and ubuntu won't set o+w with os.mkdir
+            # this will fix it
             os.chmod(path, mode)
+
     return os.path.isdir(path)
 
 
@@ -663,7 +749,7 @@ def checkXServer():
     """
     Check if there is a X11 server running on this system.
 
-    Use ``is_Qt5_working`` instead if you want to be sure that Qt5 is working.
+    Use ``is_Qt_working`` instead if you want to be sure that Qt is working.
 
     Returns:
         bool:   ``True`` if X11 server is running
@@ -684,22 +770,22 @@ def checkXServer():
         return False
 
 
-def is_Qt5_working(systray_required=False):
+def is_Qt_working(systray_required=False):
     """
-    Check if the Qt5 GUI library is working (installed and configured)
+    Check if the Qt GUI library is working (installed and configured)
 
-    This function is contained in BiT CLI (not BiT Qt) to allow Qt5
+    This function is contained in BiT CLI (not BiT Qt) to allow Qt
     diagnostics output even if the BiT Qt GUI is not installed.
-    This function does NOT add a hard Qt5 dependency (just "probing")
+    This function does NOT add a hard Qt dependency (just "probing")
     so it is OK to be in BiT CLI.
 
     Args:
         systray_required: Set to ``True`` if the systray of the desktop
-        environment must be available too to consider Qt5 as "working"
+        environment must be available too to consider Qt as "working"
 
     Returns:
-        bool: ``True``  Qt5 can create a GUI
-              ``False`` Qt5 fails (or the systray is not available
+        bool: ``True``  Qt can create a GUI
+              ``False`` Qt fails (or the systray is not available
                         if ``systray_required`` is ``True``)
     """
 
@@ -707,7 +793,7 @@ def is_Qt5_working(systray_required=False):
     # don't want to crash BiT if this happens...
 
     try:
-        path = os.path.join(backintimePath("common"), "qt5_probing.py")
+        path = os.path.join(backintimePath("common"), "qt_probing.py")
         cmd = [sys.executable, path]
         if logger.DEBUG:
             cmd.append('--debug')
@@ -718,27 +804,27 @@ def is_Qt5_working(systray_required=False):
                               universal_newlines=True) as proc:
 
             std_output, error_output = proc.communicate(timeout=30)  # to get the exit code
-            # "timeout" fixes #1592 (qt5_probing.py may hang as root): Kill after timeout
+            # "timeout" fixes #1592 (qt_probing.py may hang as root): Kill after timeout
 
-            logger.debug(f"Qt5 probing result: exit code {proc.returncode}")
+            logger.debug(f"Qt probing result: exit code {proc.returncode}")
 
-            if proc.returncode != 2 or logger.DEBUG:  # if some Qt5 parts are missing: Show details
-                logger.debug(f"Qt5 probing stdout:\n{std_output}")
-                logger.debug(f"Qt5 probing errout:\n{error_output}")
+            if proc.returncode != 2 or logger.DEBUG:  # if some Qt parts are missing: Show details
+                logger.debug(f"Qt probing stdout:\n{std_output}")
+                logger.debug(f"Qt probing errout:\n{error_output}")
 
             return proc.returncode == 2 or (proc.returncode == 1 and systray_required is False)
 
     except FileNotFoundError:
-        logger.error(f"Qt5 probing script not found: {cmd[0]}")
+        logger.error(f"Qt probing script not found: {cmd[0]}")
         raise
 
-    # Fix for #1592 (qt5_probing.py may hang as root): Kill after timeout
+    # Fix for #1592 (qt_probing.py may hang as root): Kill after timeout
     except subprocess.TimeoutExpired:
         proc.kill()
         outs, errs = proc.communicate()
-        logger.info("Qt5 probing sub process killed after timeout without response")
-        logger.debug(f"Qt5 probing stdout:\n{outs}")
-        logger.debug(f"Qt5 probing errout:\n{errs}")
+        logger.info("Qt probing sub process killed after timeout without response")
+        logger.debug(f"Qt probing stdout:\n{outs}")
+        logger.debug(f"Qt probing errout:\n{errs}")
 
     except Exception as e:
         logger.error(f"Error: {repr(e)}")
@@ -891,6 +977,9 @@ def rsyncPrefix(config,
         cmd.append('--copy-links')
     else:
         cmd.append('--links')
+
+    if config.oneFileSystem():
+        cmd.append('--one-file-system')
 
     if config.preserveAcl() and "ACLs" in caps:
         cmd.append('--acls')  # preserve ACLs (implies --perms)
@@ -1046,6 +1135,7 @@ def checkCronPattern(s):
     except ValueError:
         return False
 
+
 #TODO: check if this is still necessary
 def checkHomeEncrypt():
     """
@@ -1072,6 +1162,7 @@ def checkHomeEncrypt():
                 return True
     return False
 
+
 def envLoad(f):
     """
     Load environ variables from file ``f`` into current environ.
@@ -1090,6 +1181,7 @@ def envLoad(f):
         if not key in list(env.keys()):
             os.environ[key] = value
     del(env_file)
+
 
 def envSave(f):
     """
@@ -1110,8 +1202,16 @@ def envSave(f):
 
     env_file.save(f)
 
+
 def keyringSupported():
-    if keyring is None:
+    """
+    Checks if a keyring (supported by BiT) is available
+
+    Returns:
+         bool: ``True`` if a supported keyring could be loaded
+    """
+
+    if not is_keyring_available:
         logger.debug('No keyring due to import error.')
         return False
 
@@ -1174,7 +1274,7 @@ def keyringSupported():
             # Load the backend step-by-step.
             # e.g. When the target is "keyring.backends.Gnome.Keyring" then in
             # a first step "Gnome" part is loaded first and if successful the
-            # "Keyring" part.
+            # "keyring" part.
             for b in backends:
                 result = getattr(result, b)
 
@@ -1204,14 +1304,18 @@ def keyringSupported():
 
 
 def password(*args):
-    if not keyring is None:
+
+    if is_keyring_available:
         return keyring.get_password(*args)
     return None
 
+
 def setPassword(*args):
-    if not keyring is None:
+
+    if is_keyring_available:
         return keyring.set_password(*args)
     return False
+
 
 def mountpoint(path):
     """
@@ -1225,11 +1329,15 @@ def mountpoint(path):
         str:        mountpoint of the filesystem
     """
     path = os.path.realpath(os.path.abspath(path))
+
     while path != os.path.sep:
         if os.path.ismount(path):
             return path
+
         path = os.path.abspath(os.path.join(path, os.pardir))
+
     return path
+
 
 def decodeOctalEscape(s):
     """
@@ -1245,6 +1353,7 @@ def decodeOctalEscape(s):
     def repl(m):
         return chr(int(m.group(1), 8))
     return re.sub(r'\\(\d{3})', repl, s)
+
 
 def mountArgs(path):
     """
@@ -1262,7 +1371,7 @@ def mountArgs(path):
         list:       mount args
     """
     mp = mountpoint(path)
-    
+
     with open('/etc/mtab', 'r') as mounts:
 
         for line in mounts:
@@ -1275,6 +1384,7 @@ def mountArgs(path):
                     return args
 
     return None
+
 
 def device(path):
     """
@@ -1297,6 +1407,7 @@ def device(path):
         return args[0]
 
     return None
+
 
 def filesystem(path):
     """
@@ -1440,6 +1551,7 @@ def uuidFromDev(dev):
     # Try "udevadm" command at the end
     return _uuidFromDev_via_udevadm_command(dev)
 
+
 def uuidFromPath(path):
     """
     Get the UUID for the for the filesystem of ``path``.
@@ -1452,61 +1564,6 @@ def uuidFromPath(path):
     """
     return uuidFromDev(device(path))
 
-def filesystemMountInfo():
-    """
-    Get a dict of mount point string -> dict of filesystem info for
-    entire system.
-
-    Returns:
-        dict:   {MOUNTPOINT: {'original_uuid': UUID}}
-    """
-    # There may be multiple mount points inside of the root (/) mount, so
-    # iterate over mtab to find all non-special mounts.
-    with open('/etc/mtab', 'r') as mounts:
-        return {items[1]: {'original_uuid': uuidFromDev(items[0])} for items in
-                [mount_line.strip('\n').split(' ')[:2] for mount_line in mounts]
-                if uuidFromDev(items[0]) != None}
-
-def wrapLine(msg, size=950, delimiters='\t ', new_line_indicator = 'CONTINUE: '):
-    """
-    Wrap line ``msg`` into multiple lines with each shorter than ``size``. Try
-    to break the line on ``delimiters``. New lines will start with
-    ``new_line_indicator``.
-
-    Args:
-        msg (str):                  string that should get wrapped
-        size (int):                 maximum length of returned strings
-        delimiters (str):           try to break ``msg`` on these characters
-        new_line_indicator (str):   start new lines with this string
-
-    Yields:
-        str:                        lines with max ``size`` length
-    """
-    if len(new_line_indicator) >= size - 1:
-        new_line_indicator = ''
-    while msg:
-        if len(msg) <= size:
-            yield(msg)
-            break
-        else:
-            line = ''
-            for look in range(size-1, size//2, -1):
-                if msg[look] in delimiters:
-                    line, msg = msg[:look+1], new_line_indicator + msg[look+1:]
-                    break
-            if not line:
-                line, msg = msg[:size], new_line_indicator + msg[size:]
-            yield(line)
-
-def syncfs():
-    """
-    Sync any data buffered in memory to disk.
-
-    Returns:
-        bool:   ``True`` if successful
-    """
-    if checkCommand('sync'):
-        return(Execute(['sync']).run() == 0)
 
 def isRoot():
     """
@@ -1515,6 +1572,10 @@ def isRoot():
     Returns:
         bool:   ``True`` if we are root
     """
+
+    # The EUID (Effective UID) may be different from the UID (user ID)
+    # in case of SetUID or using "sudo" (where EUID is "root" and UID
+    # is the original user who executed "sudo").
     return os.geteuid() == 0
 
 def usingSudo():
@@ -1522,7 +1583,7 @@ def usingSudo():
     Check if 'sudo' was used to start this process.
 
     Returns:
-        bool:   ``True`` if process was started with sudo
+        bool:   ``True`` if the process was started with sudo
     """
     return isRoot() and os.getenv('HOME', '/root') != '/root'
 
@@ -1837,6 +1898,7 @@ def fdDup(old, new_fd, mode = 'w'):
     except OSError as e:
         logger.debug('Failed to redirect {}: {}'.format(old, str(e)))
 
+
 class UniquenessSet:
     """
     Check for uniqueness or equality of files.
@@ -2029,6 +2091,7 @@ class Alarm(object):
         else:
             self.callback()
 
+
 class ShutDown(object):
     """
     Shutdown the system after the current snapshot has finished.
@@ -2186,17 +2249,19 @@ class ShutDown(object):
         """
         if not self.activate_shutdown:
             return(False)
+
         if self.is_root:
-            syncfs()
             self.started = True
             proc = subprocess.Popen(['shutdown', '-h', 'now'])
             proc.communicate()
             return proc.returncode
+
         if self.proxy is None:
             return(False)
+
         else:
-            syncfs()
             self.started = True
+
             return(self.proxy(*self.args))
 
     def unity7(self):
@@ -2213,6 +2278,7 @@ class ShutDown(object):
         m = re.match(r'unity ([\d\.]+)', unity_version)
 
         return m and Version(m.group(1)) >= Version('7.0') and processExists('unity-panel-service')
+
 
 class SetupUdev(object):
     """
@@ -2289,6 +2355,7 @@ class SetupUdev(object):
             return
         self.iface.clean()
 
+
 class PathHistory(object):
     def __init__(self, path):
         self.history = [path,]
@@ -2322,6 +2389,7 @@ class PathHistory(object):
     def reset(self, path):
         self.history = [path,]
         self.index = 0
+
 
 class OrderedSet(MutableSet):
     """
@@ -2383,6 +2451,7 @@ class OrderedSet(MutableSet):
         if isinstance(other, OrderedSet):
             return len(self) == len(other) and list(self) == list(other)
         return set(self) == set(other)
+
 
 class Execute(object):
     """
@@ -2589,6 +2658,7 @@ class Execute(object):
             logger.info('Kill process "%s"' %self.printable_cmd, self.parent, 2)
             return self.currentProc.kill()
 
+
 class Daemon:
     """
     A generic daemon class.
@@ -2759,13 +2829,33 @@ class Daemon:
         """
         pass
 
-def __logKeyringWarning():
-    from time import sleep
-    sleep(0.1)
-    logger.warning('import keyring failed')
-
-if keyring is None and keyring_warn:
-    #delay warning to give logger some time to import
-    from threading import Thread
-    thread = Thread(target = __logKeyringWarning, args = ())
-    thread.start()
+# def __logKeyringWarning():
+#
+#     from time import sleep
+#     sleep(0.1)
+#     # TODO This function may not be thread-safe
+#     logger.warning('import keyring failed')
+#
+#
+#
+# if is_keyring_available:
+#
+#     # delay warning to give logger some time to import
+#
+#     # Jan 4, 2024 aryoda:
+#     # This is an assumed work-around for #820 (unhandled exception: NoneType)
+#     # but does not seem to fix the problem.
+#     # So I have refactored the possible name shadowing of "keyring"
+#     # as described in
+#     # https://github.com/bit-team/backintime/issues/820#issuecomment-1472971734
+#     # and left this code unchanged to wait for user feed-back if it works now.
+#     # If the error still occurs I would move the log output call
+#     # to the client of this module so that it is certain to assume it is
+#     # correctly initialized.
+#     # Maybe use backintime.py and app.py for logging...
+#     # (don't call tools.keyringSupported() for that because
+#     # it produces too much debug logging output whenever it is called
+#     # but just query tools.is_keyring_available.
+#     from threading import Thread
+#     thread = Thread(target=__logKeyringWarning, args=())
+#     thread.start()

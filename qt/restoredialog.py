@@ -18,12 +18,11 @@
 
 import os
 
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+from PyQt6.QtGui import *
+from PyQt6.QtWidgets import *
+from PyQt6.QtCore import *
 
 import tools
-import qttools
 
 
 class RestoreDialog(QDialog):
@@ -51,15 +50,15 @@ class RestoreDialog(QDialog):
         #text view
         self.txtLogView = QPlainTextEdit(self)
         self.txtLogView.setReadOnly(True)
-        self.txtLogView.setLineWrapMode(QPlainTextEdit.NoWrap)
+        self.txtLogView.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.txtLogView.setMaximumBlockCount(100000)
         self.mainLayout.addWidget(self.txtLogView)
 
         #buttons
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
-        showLog = buttonBox.addButton(_('Show full Log'), QDialogButtonBox.ActionRole)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        showLog = buttonBox.addButton(_('Show full Log'), QDialogButtonBox.ButtonRole.ActionRole)
         self.mainLayout.addWidget(buttonBox)
-        self.btnClose = buttonBox.button(QDialogButtonBox.Close)
+        self.btnClose = buttonBox.button(QDialogButtonBox.StandardButton.Close)
         self.btnClose.setEnabled(False)
         buttonBox.rejected.connect(self.close)
         showLog.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(self.logFile)))

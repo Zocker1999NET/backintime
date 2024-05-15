@@ -30,15 +30,30 @@
 """
 import os
 import sys
-
-from PyQt5.QtGui import (QFont, QColor, QKeySequence, QIcon)
-from PyQt5.QtCore import (QDir, Qt, pyqtSlot, pyqtSignal, QModelIndex,
-                          QTranslator, QLocale, QLibraryInfo,
+import textwrap
+from typing import Union, Iterable
+from PyQt6.QtGui import (QAction, QFont, QPalette, QIcon)
+from PyQt6.QtCore import (QDir,
+                          Qt,
+                          pyqtSlot,
+                          pyqtSignal,
+                          QModelIndex,
+                          QTranslator,
+                          QLocale,
+                          QLibraryInfo,
                           QT_VERSION_STR)
-from PyQt5.QtWidgets import (QFileDialog, QAbstractItemView, QListView,
-                             QTreeView, QDialog, QApplication, QStyleFactory,
-                             QTreeWidget, QTreeWidgetItem, QComboBox,
-                             QAction, QSystemTrayIcon, QWidget)
+from PyQt6.QtWidgets import (QWidget,
+                             QFileDialog,
+                             QAbstractItemView,
+                             QListView,
+                             QTreeView,
+                             QDialog,
+                             QApplication,
+                             QStyleFactory,
+                             QTreeWidget,
+                             QTreeWidgetItem,
+                             QComboBox,
+                             QSystemTrayIcon)
 from datetime import (datetime, date, timedelta)
 from calendar import monthrange
 from packaging.version import Version
@@ -50,8 +65,13 @@ import tools  # noqa: E402
 import logger  # noqa: E402
 
 
+# |---------------|
+# | Font handling |
+# |---------------|
+
+
 def fontBold(font):
-    font.setWeight(QFont.Bold)
+    font.setWeight(QFont.Weight.Bold)
     return font
 
 
@@ -60,7 +80,7 @@ def setFontBold(widget):
 
 
 def fontNormal(font):
-    font.setWeight(QFont.Normal)
+    font.setWeight(QFont.Weight.Normal)
     return font
 
 
@@ -89,6 +109,39 @@ def can_render(string, widget):
     return True
 
 
+# |--------------------------------|
+# | Widget modification & creation |
+# |--------------------------------|
+
+def set_wrapped_tooltip(widget: QWidget,
+                        tooltip: Union[str, Iterable[str]],
+                        wrap_length: int=72):
+    """Add a tooltip to the widget but insert line breaks when appropriated.
+
+    If a list of strings is provided, each string is wrapped individually and
+    then joined with a line break.
+
+    Args:
+        widget: The widget to which a tooltip should be added.
+        tooltip: The tooltip as string or iterable of strings.
+        wrap_length: Every line is at most this lengths.
+    """
+    # Always use tuple or list
+    if isinstance(tooltip, str):
+        tooltip = (tooltip, )
+
+    result = []
+    for paragraph in tooltip:
+        result.append('\n'.join(textwrap.wrap(paragraph, wrap_length)))
+
+    widget.setToolTip('\n'.join(result))
+
+
+# |---------------------|
+# | Misc / Uncatgorized |
+# |---------------------|
+
+
 def equalIndent(*args):
     width = 0
 
@@ -107,11 +160,11 @@ class FileDialogShowHidden(QFileDialog):
     def __init__(self, parent, *args, **kwargs):
         super(FileDialogShowHidden, self).__init__(parent, *args, **kwargs)
 
-        self.setOption(self.DontUseNativeDialog, True)
-        self.setOption(self.HideNameFilterDetails, True)
+        self.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+        self.setOption(QFileDialog.Option.HideNameFilterDetails, True)
 
         showHiddenAction = QAction(self)
-        showHiddenAction.setShortcuts([QKeySequence(Qt.CTRL + Qt.Key_H),])
+        showHiddenAction.setShortcut('Ctrl+H')
         showHiddenAction.triggered.connect(self.toggleShowHidden)
         self.addAction(showHiddenAction)
 
@@ -120,12 +173,12 @@ class FileDialogShowHidden(QFileDialog):
     def showHidden(self, enable):
 
         if enable:
-            self.setFilter(self.filter() | QDir.Hidden)
-        elif int(self.filter() & QDir.Hidden):
-            self.setFilter(self.filter() ^ QDir.Hidden)
+            self.setFilter(self.filter() | QDir.Filter.Hidden)
+        elif self.filter() & QDir.Filter.Hidden:
+            self.setFilter(self.filter() ^ QDir.Filter.Hidden)
 
     def toggleShowHidden(self):
-        self.showHidden(not int(self.filter() & QDir.Hidden))
+        self.showHidden(not QDir.Filter(self.filter() & QDir.Filter.Hidden))
 
 
 def getExistingDirectories(parent, *args, **kwargs):
@@ -136,14 +189,14 @@ def getExistingDirectories(parent, *args, **kwargs):
 
     dlg = FileDialogShowHidden(parent, *args, **kwargs)
 
-    dlg.setFileMode(dlg.Directory)
-    dlg.setOption(dlg.ShowDirsOnly, True)
+    dlg.setFileMode(dlg.FileMode.Directory)
+    dlg.setOption(dlg.Option.ShowDirsOnly, True)
 
-    mode = QAbstractItemView.ExtendedSelection
+    mode = QAbstractItemView.SelectionMode.ExtendedSelection
     dlg.findChildren(QListView)[0].setSelectionMode(mode)
     dlg.findChildren(QTreeView)[0].setSelectionMode(mode)
 
-    if dlg.exec_() == QDialog.Accepted:
+    if dlg.exec() == QDialog.DialogCode.Accepted:
         return dlg.selectedFiles()
 
     return [str(), ]
@@ -154,10 +207,10 @@ def getExistingDirectory(parent, *args, **kwargs):
 
     dlg = FileDialogShowHidden(parent, *args, **kwargs)
 
-    dlg.setFileMode(dlg.Directory)
-    dlg.setOption(dlg.ShowDirsOnly, True)
+    dlg.setFileMode(dlg.FileMode.Directory)
+    dlg.setOption(dlg.Option.ShowDirsOnly, True)
 
-    if dlg.exec_() == QDialog.Accepted:
+    if dlg.exec() == QDialog.DialogCode.Accepted:
         return dlg.selectedFiles()[0]
 
     return str()
@@ -168,9 +221,9 @@ def getOpenFileNames(parent, *args, **kwargs):
     Workaround to give control about hidden files
     """
     dlg = FileDialogShowHidden(parent, *args, **kwargs)
-    dlg.setFileMode(dlg.ExistingFiles)
+    dlg.setFileMode(dlg.FileMode.ExistingFiles)
 
-    if dlg.exec_() == QDialog.Accepted:
+    if dlg.exec() == QDialog.DialogCode.Accepted:
         return dlg.selectedFiles()
     return [str(), ]
 
@@ -179,9 +232,9 @@ def getOpenFileName(parent, *args, **kwargs):
     """Workaround to give control about hidden files"""
 
     dlg = FileDialogShowHidden(parent, *args, **kwargs)
-    dlg.setFileMode(dlg.ExistingFile)
+    dlg.setFileMode(dlg.FileMode.ExistingFile)
 
-    if dlg.exec_() == QDialog.Accepted:
+    if dlg.exec() == QDialog.DialogCode.Accepted:
         return dlg.selectedFiles()[0]
 
     return str()
@@ -223,7 +276,7 @@ def createQApplication(app_name='Back In Time'):
     try:
         # The platform name indicates eg. wayland vs. X11, see also:
         # https://doc.qt.io/qt-5/qguiapplication.html#platformName-prop
-        # For more details see our X11/Wayland/Qt5 documentation the doc-dev
+        # For more details see our X11/Wayland/Qt documentation the doc-dev
         # folder
         qt_platform_name = qapp.platformName()
         logger.debug(f"QT QPA platform plugin: {qt_platform_name}")
@@ -301,14 +354,14 @@ def initiate_translator(language_code: str) -> QTranslator:
     if language_code:
         logger.debug(f'Language code "{language_code}".')
     else:
-        logger.debug(f'No language code. Use systems current locale.')
+        logger.debug('No language code. Use systems current locale.')
         language_code = QLocale.system().name()
 
     rc = translator.load(
         f'qt_{language_code}',
-        QLibraryInfo.location(QLibraryInfo.TranslationsPath))
+        QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath))
 
-    if rc == False:
+    if rc is False:
         logger.warning(
             'PyQt was not able to install a translator for language code '
             f'"{language_code}". Deactivate translation and falling back to '
@@ -342,11 +395,11 @@ class TimeLine(QTreeWidget):
     def __init__(self, parent):
         super(TimeLine, self).__init__(parent)
         self.setRootIsDecorated(False)
-        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.setHeaderLabels([_('Snapshots'), 'foo'])
         self.setSortingEnabled(True)
-        self.sortByColumn(1, Qt.DescendingOrder)
+        self.sortByColumn(1, Qt.SortOrder.DescendingOrder)
         self.hideColumn(1)
         self.header().setSectionsClickable(False)
 
@@ -524,7 +577,7 @@ class TimeLineItem(QTreeWidgetItem):
         return self.snapshotID() < other.snapshotID()
 
     def snapshotID(self):
-        return self.data(0, Qt.UserRole)
+        return self.data(0, Qt.ItemDataRole.UserRole)
 
 
 class SnapshotItem(TimeLineItem):
@@ -533,7 +586,7 @@ class SnapshotItem(TimeLineItem):
         self.setText(0, sid.displayName)
         self.setFont(0, fontNormal(self.font(0)))
 
-        self.setData(0, Qt.UserRole, sid)
+        self.setData(0, Qt.ItemDataRole.UserRole, sid)
 
         if sid.isRoot:
             self.setToolTip(0, _('This is NOT a snapshot but a live '
@@ -550,14 +603,23 @@ class SnapshotItem(TimeLineItem):
 
 class HeaderItem(TimeLineItem):
     def __init__(self, name, sid):
+        """
+        Dev note (buhtz, 2024-01-14): Parts of that code are redundant with
+        app.py::MainWindow.addPlace().
+        """
         super(HeaderItem, self).__init__()
         self.setText(0, name)
         self.setFont(0, fontBold(self.font(0)))
-        self.setBackground(0, QColor(196, 196, 196))
-        self.setForeground(0, QColor(60, 60, 60))
-        self.setFlags(Qt.NoItemFlags)
 
-        self.setData(0, Qt.UserRole, sid)
+        palette = QApplication.instance().palette()
+        self.setForeground(
+            0, palette.color(QPalette.ColorRole.PlaceholderText))
+        self.setBackground(
+            0, palette.color(QPalette.ColorRole.Window))
+
+        self.setFlags(Qt.ItemFlag.NoItemFlags)
+
+        self.setData(0, Qt.ItemDataRole.UserRole, sid)
 
 
 class SortedComboBox(QComboBox):
@@ -567,8 +629,8 @@ class SortedComboBox(QComboBox):
 
     def __init__(self, parent=None):
         super(SortedComboBox, self).__init__(parent)
-        self.sortOrder = Qt.AscendingOrder
-        self.sortRole = Qt.DisplayRole
+        self.sortOrder = Qt.SortOrder.AscendingOrder
+        self.sortRole = Qt.ItemDataRole.DisplayRole
 
     def addItem(self, text, userData=None):
         """
@@ -577,7 +639,7 @@ class SortedComboBox(QComboBox):
         items in sorted order.
         """
 
-        if self.sortRole == Qt.UserRole:
+        if self.sortRole == Qt.ItemDataRole.UserRole:
             sortObject = userData
         else:
             sortObject = text
@@ -585,7 +647,9 @@ class SortedComboBox(QComboBox):
         the_list = [
             self.itemData(i, self.sortRole) for i in range(self.count())]
         the_list.append(sortObject)
-        the_list.sort(reverse=self.sortOrder)
+
+        reverse_sort = self.sortOrder == Qt.SortOrder.DescendingOrder
+        the_list.sort(reverse=reverse_sort)
         index = the_list.index(sortObject)
 
         super(SortedComboBox, self).insertItem(index, text, userData)
@@ -598,8 +662,8 @@ class SortedComboBox(QComboBox):
 class SnapshotCombo(SortedComboBox):
     def __init__(self, parent=None):
         super(SnapshotCombo, self).__init__(parent)
-        self.sortOrder = Qt.DescendingOrder
-        self.sortRole = Qt.UserRole
+        self.sortOrder = Qt.SortOrder.DescendingOrder
+        self.sortRole = Qt.ItemDataRole.UserRole
 
     def addSnapshotID(self, sid):
         assert isinstance(sid, snapshots.SID), \
@@ -636,25 +700,3 @@ class ProfileCombo(SortedComboBox):
                 self.setCurrentIndex(i)
                 break
 
-
-# Since Qt 5.1 not needed anymore.
-# Use menu.setToolTipsVisible(True).
-# See https://bugreports.qt.io/browse/QTBUG-13663
-# class Menu(QMenu):
-#     """
-#     Subclass QMenu to add ToolTips
-#     """
-
-#     def event(self, e):
-#         action = self.activeAction()
-
-#         if (e.type() == QEvent.ToolTip
-#                 and action
-#                 and action.toolTip() != action.text()):
-
-#             QToolTip.showText(e.globalPos(), self.activeAction().toolTip())
-
-#         else:
-#             QToolTip.hideText()
-
-#         return super(Menu, self).event(e)

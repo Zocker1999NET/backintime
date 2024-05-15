@@ -23,6 +23,7 @@ from test import generic
 import json
 
 import config
+import version
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -45,12 +46,18 @@ class TestBackInTime(generic.TestCase):
         functionality, and output all work as expected is NOT intended to
         replace individual method tests, which are incredibly useful as well.
 
-        Development notes (by Buhtz):
-        Multiple tests do compare return codes and output on stdout. The
-        intention might be an integration tests. But the asserts not qualified
-        to answer the important questions and observe the intended behavior.
-        Heavy refactoring is needed. But because of the "level" of that tests
-        it won't happen in the near future.
+        Development notes (by Buhtz, 2023):
+        Multiple tests do compare return codes and output on stdout. It is NOT
+        tested what is on the file system. The intention might be a system
+        test. But the asserts not qualified to answer the important questions
+        and observe the intended behavior.  Heavy refactoring is needed. But
+        because of the "level" of that tests it won't happen in the near
+        future. Also maintenance costs of this tests are damn high because
+        every tiny modifcation of BIT gives a false fail of this test.
+
+        Development notes (by Buhtz, 2024-05):
+        It is just dumb stdout parsing. I tend to remove this test because of
+        the calculation of its value and its maintenance costs.
         """
 
         # ensure that we see full diffs of assert output if there are any
@@ -154,7 +161,9 @@ under certain conditions; type `backintime --license' for details.
 
         line_contains_to_exclude = [
             "Gtk-WARNING",
-            "qt.qpa.plugin: Could not find the Qt platform plugin"
+            "qt.qpa.plugin: Could not find the Qt platform plugin",
+            'qt.dbus.integration: Could not connect "org.freedesktop.IBus" '
+            'to globalEngineChanged(QString)',
         ]
 
         # remove lines via startswith()
@@ -184,7 +193,6 @@ INFO: Take a new snapshot. Profile: 1 Main profile
 INFO: Call rsync to take the snapshot
 INFO: Save config file
 INFO: Save permissions
-INFO: Create info file
 INFO: Unlock''', re.MULTILINE))
 
         # get snapshot id
@@ -248,4 +256,4 @@ under certain conditions; type `backintime --license' for details.
         self.assertEqual(diagnostics["backintime"]["name"],
                          config.Config.APP_NAME)
         self.assertEqual(diagnostics["backintime"]["version"],
-                         config.Config.VERSION)
+                         version.__version__)

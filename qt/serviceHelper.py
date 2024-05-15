@@ -69,10 +69,16 @@ try:
 except ImportError:
     pwd = None
 
+# "dbus-python" not available for ppc64le architecture
+# "dbus.mainloop.pyqt6" not available via PyPi for any architecture
 import dbus
 import dbus.service
-import dbus.mainloop.pyqt5
-from PyQt5.QtCore import QCoreApplication
+import dbus.mainloop
+# pylint: disable-next=import-error,useless-suppression
+import dbus.mainloop.pyqt6
+# pylint: disable-next=import-error,useless-suppression
+from dbus.mainloop.pyqt6 import DBusQtMainLoop
+from PyQt6.QtCore import QCoreApplication
 
 UDEV_RULES_PATH = '/etc/udev/rules.d/99-backintime-%s.rules'
 
@@ -323,7 +329,7 @@ class SenderInfo(object):
         return self.dbus_info.GetConnectionUnixProcessID(self.sender)
 
 if __name__ == '__main__':
-    dbus.mainloop.pyqt5.DBusQtMainLoop(set_as_default=True)
+    DBusQtMainLoop(set_as_default=True)
 
     app = QCoreApplication([])
 
@@ -332,4 +338,4 @@ if __name__ == '__main__':
     object = UdevRules(bus, '/UdevRules')
 
     print("Running BIT service.")
-    app.exec_()
+    app.exec()

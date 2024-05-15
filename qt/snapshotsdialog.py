@@ -20,26 +20,26 @@ import os
 import subprocess
 import shlex
 
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+from PyQt6.QtGui import *
+from PyQt6.QtWidgets import *
+from PyQt6.QtCore import *
 
 import tools
 import restoredialog
 import messagebox
 import qttools
 import snapshots
+import logger
 
+DIFF_PARAMS = '%1 %2'
 
 if tools.checkCommand('meld'):
     DIFF_CMD = 'meld'
-    DIFF_PARAMS = '%1 %2'
 elif tools.checkCommand('kompare'):
     DIFF_CMD = 'kompare'
-    DIFF_PARAMS = '%1 %2'
 else:
-    DIFF_CMD = 'false'
-    DIFF_PARAMS = '%1 %2'
+    DIFF_CMD = ''
+
 
 class DiffOptionsDialog(QDialog):
     def __init__(self, parent):
@@ -52,32 +52,56 @@ class DiffOptionsDialog(QDialog):
 
         self.mainLayout = QGridLayout(self)
 
-        self.diffCmd = self.config.strValue('qt.diff.cmd', DIFF_CMD)
-        self.diffParams = self.config.strValue('qt.diff.params', DIFF_PARAMS)
+        cmd = self.config.strValue('qt.diff.cmd', DIFF_CMD)
+        params = self.config.strValue('qt.diff.params', DIFF_PARAMS)
 
         self.mainLayout.addWidget(QLabel(_('Command') + ':'), 0, 0)
-        self.editCmd = QLineEdit(self.diffCmd, self)
+        self.editCmd = QLineEdit(cmd, self)
         self.mainLayout.addWidget(self.editCmd, 0, 1)
 
         self.mainLayout.addWidget(QLabel(_('Parameters') + ':'), 1, 0)
-        self.editParams = QLineEdit(self.diffParams, self)
+        self.editParams = QLineEdit(params, self)
         self.mainLayout.addWidget(self.editParams, 1, 1)
 
-        self.mainLayout.addWidget(QLabel(_('Use %1 and %2 for path parameters')), 2, 1)
+        self.mainLayout.addWidget(
+            QLabel(_('Use %1 and %2 for path parameters')), 2, 1)
 
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok
+                                     | QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         self.mainLayout.addWidget(buttonBox, 3, 0, 3, 2)
 
     def accept(self):
-        diffCmd = self.editCmd.text()
-        diffParams = self.editParams.text()
+        """OK was clicked"""
 
-        if diffCmd != self.diffCmd or diffParams != self.diffParams:
-            self.config.setStrValue('qt.diff.cmd', diffCmd)
-            self.config.setStrValue('qt.diff.params', diffParams)
-            self.config.save()
+        # Get values from text dialogs fields
+        cmd = self.editCmd.text()
+        params = self.editParams.text()
+
+        # Any value?
+        if not cmd:
+            messagebox.info(_('Please set a diff command or press Cancel.'))
+            return
+
+        # Command exists?
+        if tools.checkCommand(cmd) == False:
+            messagebox.info(_(
+                'The command "{cmd}" can not be found on this system. Please '
+                'try something else or press Cancel.').format(cmd=cmd))
+            return
+
+        if not params:
+            params = DIFF_PARAMS
+            messagebox.critical(
+                self,
+                _('No parameters set for the diff command. Using '
+                  'default value "{params}".').format(params=params))
+
+        # save new values
+        self.config.setStrValue('qt.diff.cmd', cmd)
+        self.config.setStrValue('qt.diff.params', params)
+        self.config.save()
 
         super(DiffOptionsDialog, self).accept()
 
@@ -160,23 +184,24 @@ class SnapshotsDialog(QDialog):
         self.timeLine.itemSelectionChanged.connect(self.timeLineChanged)
         self.timeLine.itemActivated.connect(self.timeLineExecute)
 
-        #diff
+        # Diff
         layout = QHBoxLayout()
         self.mainLayout.addLayout(layout)
 
         self.btnDiff = QPushButton(_('Compare'), self)
         layout.addWidget(self.btnDiff)
         self.btnDiff.clicked.connect(self.btnDiffClicked)
+        self._update_btn_diff()
 
         self.comboDiff = qttools.SnapshotCombo(self)
         layout.addWidget(self.comboDiff, 2)
 
         #buttons
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.btnGoto =   buttonBox.button(QDialogButtonBox.Ok)
-        self.btnCancel = buttonBox.button(QDialogButtonBox.Cancel)
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.btnGoto =   buttonBox.button(QDialogButtonBox.StandardButton.Ok)
+        self.btnCancel = buttonBox.button(QDialogButtonBox.StandardButton.Cancel)
         self.btnGoto.setText(_('Go To'))
-        btnDiffOptions = buttonBox.addButton(_('Options'), QDialogButtonBox.HelpRole)
+        btnDiffOptions = buttonBox.addButton(_('Options'), QDialogButtonBox.ButtonRole.HelpRole)
         btnDiffOptions.setIcon(icon.DIFF_OPTIONS)
 
         self.mainLayout.addWidget(buttonBox)
@@ -333,12 +358,6 @@ class SnapshotsDialog(QDialog):
         diffCmd = self.config.strValue('qt.diff.cmd', DIFF_CMD)
         diffParams = self.config.strValue('qt.diff.params', DIFF_PARAMS)
 
-        if not tools.checkCommand(diffCmd):
-            messagebox.critical(
-                self, '{}: {}'.format(_('Command not found'), diffCmd)
-            )
-            return
-
         # prevent backup data from being accidentally overwritten
         # by create a temporary local copy and only open that one
         if not isinstance(sid1, snapshots.RootSnapshot):
@@ -347,14 +366,24 @@ class SnapshotsDialog(QDialog):
             path2 = self.parent.tmpCopy(path2, sid2)
 
         params = diffParams
-        params = params.replace('%1', '"%s"' %path1)
-        params = params.replace('%2', '"%s"' %path2)
+        params = params.replace('%1', '"%s"' % path1)
+        params = params.replace('%2', '"%s"' % path2)
 
         cmd = diffCmd + ' ' + params
+
+        logger.debug(f'Compare two snapshots with command {cmd}.')
+
         subprocess.Popen(shlex.split(cmd))
 
+    def _update_btn_diff(self):
+        """Enable the Compare button if diff command is set otherwise Disable
+        it."""
+        cmd = self.config.strValue('qt.diff.cmd', DIFF_CMD)
+        self.btnDiff.setDisabled(not cmd)
+
     def btnDiffOptionsClicked(self):
-        DiffOptionsDialog(self).exec_()
+        DiffOptionsDialog(self).exec()
+        self._update_btn_diff()
 
     def comboEqualToChanged(self, index):
         self.updateSnapshots()
@@ -379,9 +408,11 @@ class SnapshotsDialog(QDialog):
         msg = '{}\n{}: {}'.format(
             msg, _('WARNING'), _('This cannot be revoked!'))
 
-        if QMessageBox.Yes == messagebox.warningYesNo(self, msg):
+        answer = messagebox.warningYesNo(self, msg)
+        if answer == QMessageBox.StandardButton.Yes:
+
             for item in items:
-                item.setFlags(Qt.NoItemFlags)
+                item.setFlags(Qt.ItemFlag.NoItemFlags)
 
             thread = RemoveFileThread(self, items)
             thread.started.connect(lambda: self.btnGoto.setDisabled(True))
@@ -396,9 +427,12 @@ class SnapshotsDialog(QDialog):
             msg = _('Exclude {path} from future snapshots?').format(
                 path=f'"{self.path}"')
 
-            if self.path not in exclude and QMessageBox.Yes == messagebox.warningYesNo(self, msg):
-                exclude.append(self.path)
-                self.config.setExclude(exclude)
+            if self.path not in exclude:
+                answer = messagebox.warningYesNo(self, msg)
+
+                if answer == QMessageBox.StandardButton.Yes:
+                    exclude.append(self.path)
+                    self.config.setExclude(exclude)
 
     def btnSelectAllClicked(self):
         """
@@ -414,6 +448,7 @@ class SnapshotsDialog(QDialog):
         if sid:
             self.sid = sid
         super(SnapshotsDialog, self).accept()
+
 
 class RemoveFileThread(QThread):
     """

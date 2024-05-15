@@ -20,6 +20,7 @@ import sys
 import os
 import subprocess
 import signal
+import textwrap
 
 # TODO Is this really required? If the client is not configured for X11
 #      it may use Wayland or something else...
@@ -31,19 +32,20 @@ if not os.getenv('DISPLAY', ''):
 import qttools
 qttools.registerBackintimePath('common')
 
+import logger
+
 # Workaround until the codebase allows a single place to init all translations
 import tools
 tools.initiate_translation(None)
 
-import logger
 import snapshots
 import progress
 import logviewdialog
 import encfstools
 
-from PyQt5.QtCore import QObject, QTimer
-from PyQt5.QtWidgets import QSystemTrayIcon, QMenu, QProgressBar, QWidget
-from PyQt5.QtGui import QIcon, QRegion
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QSystemTrayIcon, QMenu, QProgressBar, QWidget
+from PyQt6.QtGui import QRegion
 
 
 class QtSysTrayIcon:
@@ -115,7 +117,11 @@ class QtSysTrayIcon:
         self.progressBar.setValue(0)
         self.progressBar.setTextVisible(False)
         self.progressBar.resize(24, 6)
-        self.progressBar.render(self.pixmap, sourceRegion = QRegion(0, -14, 24, 6), flags = QWidget.RenderFlags(QWidget.DrawChildren))
+        self.progressBar.render(
+            self.pixmap,
+            sourceRegion=QRegion(0, -14, 24, 6),
+            flags=QWidget.RenderFlag.DrawChildren
+        )
 
         self.first_error = self.config.notify()
         self.popup = None
@@ -145,7 +151,7 @@ class QtSysTrayIcon:
 
         # logger.debug("begin loop", self)
 
-        self.qapp.exec_()
+        self.qapp.exec()
 
         # logger.debug("end loop", self)
 
@@ -172,11 +178,9 @@ class QtSysTrayIcon:
                 self.last_message = message
                 if self.decode:
                     message = (message[0], self.decode.log(message[1]))
-                self.menuStatusMessage.setText('\n'.join(tools.wrapLine(message[1],\
-                                                                         size = 80,\
-                                                                         delimiters = '',\
-                                                                         new_line_indicator = '') \
-                                                                       ))
+                self.menuStatusMessage.setText('\n'.join(textwrap.wrap(message[1], \
+                                                                                width = 80) \
+                                                         ))
                 self.status_icon.setToolTip(message[1])
 
         pg = progress.ProgressFile(self.config)
@@ -222,7 +226,7 @@ class QtSysTrayIcon:
         dlg = logviewdialog.LogViewDialog(self, systray = True)
         dlg.decode = self.decode
         dlg.cbDecode.setChecked(self.btnDecode.isChecked())
-        dlg.exec_()
+        dlg.exec()
 
     def onBtnDecode(self, checked):
         if checked:

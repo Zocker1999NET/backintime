@@ -21,9 +21,14 @@ import os
 import datetime
 import copy
 import re
-
-from PyQt5.QtGui import QIcon, QFont, QPalette, QBrush, QColor
-from PyQt5.QtWidgets import (QDialog,
+import getpass
+from PyQt6.QtGui import (QIcon,
+                         QFont,
+                         QPalette,
+                         QBrush,
+                         QColor,
+                         QFileSystemModel)
+from PyQt6.QtWidgets import (QDialog,
                              QVBoxLayout,
                              QHBoxLayout,
                              QGridLayout,
@@ -46,11 +51,10 @@ from PyQt5.QtWidgets import (QDialog,
                              QAbstractItemView,
                              QHeaderView,
                              QCheckBox,
-                             QFileSystemModel,
                              QMenu,
                              QProgressBar,
                              QPlainTextEdit)
-from PyQt5.QtCore import (Qt,
+from PyQt6.QtCore import (Qt,
                           QDir,
                           QSortFilterProxyModel,
                           QThread,
@@ -66,6 +70,80 @@ import snapshots
 import sshtools
 import logger
 from exceptions import MountException, NoPubKeyLogin, KnownHost
+
+
+class SshProxyWidget(QWidget):
+    """Used in SSH snapshot profiles on the General tab.
+
+    Dev note by buhtz (2024-04): Just a quick n dirty solution until the
+    re-design and re-factoring of the whole dialog.
+    """
+    def __init__(self, parent, host, port, user):
+        super().__init__(parent)
+
+        if host == '':
+            port = ''
+            user = ''
+
+        vlayout = QVBoxLayout(self)
+        # zero margins
+        vlayout.setContentsMargins(0, 0, 0, 0)
+
+        checkbox = QCheckBox(_('SSH Proxy'), self)
+        vlayout.addWidget(checkbox)
+        checkbox.stateChanged.connect(self._slot_checkbox_changed)
+
+        hlayout = QHBoxLayout()
+        vlayout.addLayout(hlayout)
+
+        hlayout.addWidget(QLabel(_('Host:'), self))
+        self.host_edit = QLineEdit(host, self)
+        hlayout.addWidget(self.host_edit)
+
+        hlayout.addWidget(QLabel(_('Port:'), self))
+        self.port_edit = QLineEdit(port, self)
+        hlayout.addWidget(self.port_edit)
+
+        hlayout.addWidget(QLabel(_('User:'), self))
+        self.user_edit = QLineEdit(user, self)
+        hlayout.addWidget(self.user_edit)
+
+        if host == '':
+            self._disable()
+
+        qttools.set_wrapped_tooltip(
+            self,
+            'Connect to the target host via this proxy (also known as a jump '
+            'host). See "-J" in the "ssh" command documentation or '
+            '"ProxyJump" in "ssh_config" man page for details.')
+
+    def _slot_checkbox_changed(self, state):
+        if Qt.CheckState(state) == Qt.CheckState.Checked:
+            self._enable()
+        else:
+            self._disable()
+
+    def _set_default(self):
+        self.host_edit.setText('')
+        self.port_edit.setText('22')
+        self.user_edit.setText(getpass.getuser())
+
+    def _disable(self):
+        self._set_default()
+        self._enable(False)
+
+    def _enable(self, enable=True):
+        # QEdit and QLabel's
+        lay = self.layout().itemAt(1)
+        for idx in range(lay.count()):
+            lay.itemAt(idx).widget().setEnabled(enable)
+
+    def values(self):
+        return {
+            'host': self.host_edit.text(),
+            'port': self.port_edit.text(),
+            'user': self.user_edit.text(),
+        }
 
 
 class SettingsDialog(QDialog):
@@ -123,7 +201,7 @@ class SettingsDialog(QDialog):
 
         # TAB: General
         scrollArea = QScrollArea(self)
-        scrollArea.setFrameStyle(QFrame.NoFrame)
+        scrollArea.setFrameStyle(QFrame.Shape.NoFrame)
         self.tabs.addTab(scrollArea, _('&General'))
 
         layoutWidget = QWidget(self)
@@ -174,14 +252,14 @@ class SettingsDialog(QDialog):
         hlayout.addWidget(self.editSnapshotsPath)
 
         self.btnSnapshotsPath = QToolButton(self)
-        self.btnSnapshotsPath.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.btnSnapshotsPath.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.btnSnapshotsPath.setIcon(icon.FOLDER)
         self.btnSnapshotsPath.setText(_('Folder'))
         self.btnSnapshotsPath.setMinimumSize(32, 28)
         hlayout.addWidget(self.btnSnapshotsPath)
         self.btnSnapshotsPath.clicked.connect(self.btnSnapshotsPathClicked)
 
-        # SSH
+        # --- SSH ---
         groupBox = QGroupBox(self)
         self.modeSsh = groupBox
         groupBox.setTitle(_('SSH Settings'))
@@ -230,7 +308,7 @@ class SettingsDialog(QDialog):
         hlayout3.addWidget(self.txtSshPrivateKeyFile)
 
         self.btnSshPrivateKeyFile = QToolButton(self)
-        self.btnSshPrivateKeyFile.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.btnSshPrivateKeyFile.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.btnSshPrivateKeyFile.setIcon(icon.FOLDER)
         self.btnSshPrivateKeyFile.setToolTip(
             _('Choose an existing private key file (normally named "id_rsa")'))
@@ -240,7 +318,7 @@ class SettingsDialog(QDialog):
             .connect(self.btnSshPrivateKeyFileClicked)
 
         self.btnSshKeyGen = QToolButton(self)
-        self.btnSshKeyGen.setToolButtonStyle(Qt.ToolButtonIconOnly)
+        self.btnSshKeyGen.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.btnSshKeyGen.setIcon(icon.ADD)
         self.btnSshKeyGen.setToolTip(
             _('Create a new SSH key without password (not allowed if a '
@@ -248,6 +326,7 @@ class SettingsDialog(QDialog):
         self.btnSshKeyGen.setMinimumSize(32, 28)
         hlayout3.addWidget(self.btnSshKeyGen)
         self.btnSshKeyGen.clicked.connect(self.btnSshKeyGenClicked)
+
         # Disable SSH key generation button if a key file is already set
         self.txtSshPrivateKeyFile.textChanged \
             .connect(lambda x: self.btnSshKeyGen.setEnabled(not x))
@@ -255,6 +334,14 @@ class SettingsDialog(QDialog):
         qttools.equalIndent(self.lblSshHost,
                             self.lblSshPath,
                             self.lblSshCipher)
+
+        self.wdgSshProxy = SshProxyWidget(
+            self,
+            self.config.sshProxyHost(),
+            self.config.sshProxyPort(),
+            self.config.sshProxyUser()
+        )
+        vlayout.addWidget(self.wdgSshProxy)
 
         # encfs
         self.modeLocalEncfs = self.modeLocal
@@ -275,13 +362,13 @@ class SettingsDialog(QDialog):
         self.lblPassword1 = QLabel(_('Password'), self)
         hlayout1.addWidget(self.lblPassword1)
         self.txtPassword1 = QLineEdit(self)
-        self.txtPassword1.setEchoMode(QLineEdit.Password)
+        self.txtPassword1.setEchoMode(QLineEdit.EchoMode.Password)
         hlayout1.addWidget(self.txtPassword1)
 
         self.lblPassword2 = QLabel(_('Password'), self)
         hlayout2.addWidget(self.lblPassword2)
         self.txtPassword2 = QLineEdit(self)
-        self.txtPassword2.setEchoMode(QLineEdit.Password)
+        self.txtPassword2.setEchoMode(QLineEdit.EchoMode.Password)
         hlayout2.addWidget(self.txtPassword2)
 
         self.cbPasswordSave = QCheckBox(_('Save Password to Keyring'), self)
@@ -382,7 +469,7 @@ class SettingsDialog(QDialog):
 
         self.lblScheduleDay = QLabel(_('Day') + ':', self)
         self.lblScheduleDay.setContentsMargins(5, 0, 0, 0)
-        self.lblScheduleDay.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.lblScheduleDay.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleDay, 1, 0)
 
         self.comboScheduleDay = QComboBox(self)
@@ -393,7 +480,7 @@ class SettingsDialog(QDialog):
 
         self.lblScheduleWeekday = QLabel(_('Weekday') + ':', self)
         self.lblScheduleWeekday.setContentsMargins(5, 0, 0, 0)
-        self.lblScheduleWeekday.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.lblScheduleWeekday.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleWeekday, 2, 0)
 
         self.comboScheduleWeekday = QComboBox(self)
@@ -408,7 +495,7 @@ class SettingsDialog(QDialog):
 
         self.lblScheduleTime = QLabel(_('Hour') + ':', self)
         self.lblScheduleTime.setContentsMargins(5, 0, 0, 0)
-        self.lblScheduleTime.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.lblScheduleTime.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleTime, 3, 0)
 
         self.comboScheduleTime = QComboBox(self)
@@ -424,7 +511,7 @@ class SettingsDialog(QDialog):
         self.lblScheduleCronPatern = QLabel(_('Hours') + ':', self)
         self.lblScheduleCronPatern.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleCronPatern.setAlignment(
-            Qt.AlignRight | Qt.AlignVCenter)
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleCronPatern, 4, 0)
 
         self.txtScheduleCronPatern = QLineEdit(self)
@@ -442,7 +529,7 @@ class SettingsDialog(QDialog):
         self.lblScheduleRepeatedPeriod = QLabel(_('Every') + ':')
         self.lblScheduleRepeatedPeriod.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleRepeatedPeriod.setAlignment(
-            Qt.AlignRight | Qt.AlignVCenter)
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleRepeatedPeriod, 7, 0)
 
         hlayout = QHBoxLayout()
@@ -474,6 +561,19 @@ class SettingsDialog(QDialog):
 
         self.comboSchedule.currentIndexChanged.connect(self.scheduleChanged)
 
+        self.cbScheduleDebug = QCheckBox(self)
+        self.cbScheduleDebug.setText(_('Enable logging of debug messages'))
+        qttools.set_wrapped_tooltip(
+            self.cbScheduleDebug,
+            [
+                _('Writes debug-level messages into the system log via '
+                  '"--debug".'),
+                _('Caution: Only use this temporarily for diagnostics, as it '
+                  'generates a large amount of output.')
+            ]
+        )
+        glayout.addWidget(self.cbScheduleDebug, 8, 0)
+
         #
         layout.addStretch()
         scrollArea.setWidget(layoutWidget)
@@ -485,12 +585,13 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout(tabWidget)
 
         self.listInclude = QTreeWidget(self)
-        self.listInclude.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listInclude.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.listInclude.setRootIsDecorated(False)
         self.listInclude.setHeaderLabels(
             [_('Include files and folders'), 'Count'])
 
-        self.listInclude.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.listInclude.header().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch)
         self.listInclude.header().setSectionsClickable(True)
         self.listInclude.header().setSortIndicatorShown(True)
         self.listInclude.header().setSectionHidden(1, True)
@@ -523,13 +624,18 @@ class SettingsDialog(QDialog):
 
         self.lblSshEncfsExcludeWarning = QLabel(
             "<b>{}:</b> {}".format(
-                _("Warning"),
+                _('Info'),
                 _(
-                    "Wildcards ({example1}) will be ignored "
-                    "with mode 'SSH encrypted'.\nOnly single or double "
-                    "asterisks are allowed ({example2})"
-                ).format(example1="'foo*', '[fF]oo', 'fo?'",
-                         example2="'foo/*', 'foo/**/bar'")
+                    "In 'SSH encrypted' mode, only single or double asterisks "
+                    "are functional (e.g. {example2}). Other types of "
+                    "wildcards and patterns will be ignored (e.g. {example1})."
+                    "Filenames are unpredictable in this mode due to "
+                    "encryption by EncFS."
+                ).format(example1="<code>'foo*'</code>, "
+                                  "<code>'[fF]oo'</code>, "
+                                  "<code>'fo?'</code>",
+                         example2="<code>'foo/*'</code>, "
+                                  "<code>'foo/**/bar'</code>")
             ),
             self
         )
@@ -537,12 +643,13 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.lblSshEncfsExcludeWarning)
 
         self.listExclude = QTreeWidget(self)
-        self.listExclude.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listExclude.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.listExclude.setRootIsDecorated(False)
         self.listExclude.setHeaderLabels(
             [_('Exclude patterns, files or folders'), 'Count'])
 
-        self.listExclude.header().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.listExclude.header().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch)
         self.listExclude.header().setSectionsClickable(True)
         self.listExclude.header().setSortIndicatorShown(True)
         self.listExclude.header().setSectionHidden(1, True)
@@ -551,14 +658,10 @@ class SettingsDialog(QDialog):
             .connect(self.excludeCustomSortOrder)
 
         layout.addWidget(self.listExclude)
-        self.listExcludeCount = 0
 
-        label = QLabel(_('Highly recommended') + ':', self)
-        qttools.setFontBold(label)
-        layout.addWidget(label)
-        label = QLabel(', '.join(sorted(self.config.DEFAULT_EXCLUDE)), self)
-        label.setWordWrap(True)
-        layout.addWidget(label)
+        self._label_exclude_recommend = QLabel('', self)
+        self._label_exclude_recommend.setWordWrap(True)
+        layout.addWidget(self._label_exclude_recommend)
 
         buttonsLayout = QHBoxLayout()
         layout.addLayout(buttonsLayout)
@@ -612,7 +715,7 @@ class SettingsDialog(QDialog):
 
         # TAB: Auto-remove
         scrollArea = QScrollArea(self)
-        scrollArea.setFrameStyle(QFrame.NoFrame)
+        scrollArea.setFrameStyle(QFrame.Shape.NoFrame)
         self.tabs.addTab(scrollArea, _('&Auto-remove'))
 
         layoutWidget = QWidget(self)
@@ -741,7 +844,7 @@ class SettingsDialog(QDialog):
 
         # TAB: Options
         scrollArea = QScrollArea(self)
-        scrollArea.setFrameStyle(QFrame.NoFrame)
+        scrollArea.setFrameStyle(QFrame.Shape.NoFrame)
         self.tabs.addTab(scrollArea, _('&Options'))
 
         layoutWidget = QWidget(self)
@@ -821,7 +924,7 @@ class SettingsDialog(QDialog):
 
         # TAB: Expert Options
         scrollArea = QScrollArea(self)
-        scrollArea.setFrameStyle(QFrame.NoFrame)
+        scrollArea.setFrameStyle(QFrame.Shape.NoFrame)
         self.tabs.addTab(scrollArea, _('E&xpert Options'))
 
         layoutWidget = QWidget(self)
@@ -1018,6 +1121,26 @@ class SettingsDialog(QDialog):
         )
         layout.addWidget(self.cbCopyLinks)
 
+        # one file system option
+        self.cbOneFileSystem = QCheckBox(
+            _('Restrict to one file system'), self)
+        qttools.set_wrapped_tooltip(
+            self.cbOneFileSystem,
+            [
+                'uses \'rsync --one-file-system\'',
+                'From \'man rsync\':',
+                'This tells rsync to avoid crossing a filesystem boundary '
+                'when recursing. This does not limit the user\'s ability '
+                'to specify items to copy from multiple filesystems, just '
+                'rsync\'s recursion through the hierarchy of each directory '
+                'that the user specified, and also the analogous recursion '
+                'on the receiving side during deletion. Also keep in mind '
+                'that rsync treats a "bind" mount to the same device as '
+                'being on the same filesystem.'
+            ]
+        )
+        layout.addWidget(self.cbOneFileSystem)
+
         # additional rsync options
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
@@ -1083,12 +1206,12 @@ class SettingsDialog(QDialog):
 
         # buttons
         buttonBox = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self)
         btnRestore = buttonBox.addButton(
-            _('Restore Config'), QDialogButtonBox.ResetRole)
+            _('Restore Config'), QDialogButtonBox.ButtonRole.ResetRole)
         btnUserCallback = buttonBox.addButton(
-            _('Edit user-callback'), QDialogButtonBox.ResetRole)
+            _('Edit user-callback'), QDialogButtonBox.ButtonRole.ResetRole)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         btnRestore.clicked.connect(self.restoreConfig)
@@ -1232,6 +1355,26 @@ class SettingsDialog(QDialog):
 
         self.disableProfileChanged = False
 
+    def _update_exclude_recommend_label(self):
+        """Update the label about recommended exclude patterns."""
+
+        # Default patterns that are not still in the list widget
+        recommend = list(filter(
+            lambda val: not self.listExclude.findItems(
+                val, Qt.MatchFlag.MatchFixedString),
+            self.config.DEFAULT_EXCLUDE
+        ))
+
+        if not recommend:
+            recommend = [_('(All recommendations already included.)')]
+
+        self._label_exclude_recommend.setText(
+            '<strong>{}</strong>: {}'.format(
+                _('Highly recommended'),
+                ', '.join(sorted(recommend))
+            )
+        )
+
     def updateProfile(self):
         if self.config.currentProfile() == '1':
             self.btnEditProfile.setEnabled(False)
@@ -1251,7 +1394,7 @@ class SettingsDialog(QDialog):
         self.editSnapshotsPath.setText(
             self.config.snapshotsPath(mode='local'))
 
-        # ssh
+        # SSH
         self.txtSshHost.setText(self.config.sshHost())
         self.txtSshPort.setText(str(self.config.sshPort()))
         self.txtSshUser.setText(self.config.sshUser())
@@ -1303,31 +1446,40 @@ class SettingsDialog(QDialog):
                            self.config.scheduleRepeatedUnit())
         self.updateSchedule(self.config.scheduleMode())
 
+        self.cbScheduleDebug.setChecked(self.config.scheduleDebug())
+
         # TAB: Include
         self.listInclude.clear()
 
         for include in self.config.include():
             self.addInclude(include)
 
-        includeSortColumn = int(self.config.profileIntValue(
-            'qt.settingsdialog.include.SortColumn', 1))
-        includeSortOrder = int(self.config.profileIntValue(
-            'qt.settingsdialog.include.SortOrder', Qt.AscendingOrder))
+        includeSortColumn = int(
+            self.config.profileIntValue('qt.settingsdialog.include.SortColumn',
+                                        1)
+        )
+        includeSortOrder = Qt.SortOrder(
+            self.config.profileIntValue('qt.settingsdialog.include.SortOrder',
+                                        Qt.SortOrder.AscendingOrder)
+        )
         self.listInclude.sortItems(includeSortColumn, includeSortOrder)
 
         # TAB: Exclude
         self.listExclude.clear()
 
         for exclude in self.config.exclude():
-            self.addExclude(exclude)
+            self._add_exclude_pattern(exclude)
         self.cbExcludeBySize.setChecked(self.config.excludeBySizeEnabled())
         self.spbExcludeBySize.setValue(self.config.excludeBySize())
 
         excludeSortColumn = int(self.config.profileIntValue(
             'qt.settingsdialog.exclude.SortColumn', 1))
-        excludeSortOrder = int(self.config.profileIntValue(
-            'qt.settingsdialog.exclude.SortOrder', Qt.AscendingOrder))
+        excludeSortOrder = Qt.SortOrder(
+            self.config.profileIntValue('qt.settingsdialog.exclude.SortOrder',
+                                        Qt.SortOrder.AscendingOrder)
+        )
         self.listExclude.sortItems(excludeSortColumn, excludeSortOrder)
+        self._update_exclude_recommend_label()
 
         # TAB: Auto-remove
 
@@ -1393,6 +1545,7 @@ class SettingsDialog(QDialog):
         self.cbPreserveXattr.setChecked(self.config.preserveXattr())
         self.cbCopyUnsafeLinks.setChecked(self.config.copyUnsafeLinks())
         self.cbCopyLinks.setChecked(self.config.copyLinks())
+        self.cbOneFileSystem.setChecked(self.config.oneFileSystem())
         self.cbRsyncOptions.setChecked(self.config.rsyncOptionsEnabled())
         self.txtRsyncOptions.setText(self.config.rsyncOptions())
         self.cbSshPrefix.setChecked(self.config.sshPrefixEnabled())
@@ -1447,6 +1600,10 @@ class SettingsDialog(QDialog):
         self.config.setSshHost(self.txtSshHost.text())
         self.config.setSshPort(self.txtSshPort.text())
         self.config.setSshUser(self.txtSshUser.text())
+        sshproxy_vals = self.wdgSshProxy.values()
+        self.config.setSshProxyHost(sshproxy_vals['host'])
+        self.config.setSshProxyPort(sshproxy_vals['port'])
+        self.config.setSshProxyUser(sshproxy_vals['user'])
         self.config.setSshSnapshotsPath(self.txtSshPath.text())
         self.config.setSshCipher(
             self.comboSshCipher.itemData(self.comboSshCipher.currentIndex()))
@@ -1485,12 +1642,12 @@ class SettingsDialog(QDialog):
         self.config.setProfileIntValue(
             'qt.settingsdialog.include.SortOrder',
             self.listInclude.header().sortIndicatorOrder())
-        self.listInclude.sortItems(1, Qt.AscendingOrder)
+        self.listInclude.sortItems(1, Qt.SortOrder.AscendingOrder)
 
         include_list = []
         for index in range(self.listInclude.topLevelItemCount()):
             item = self.listInclude.topLevelItem(index)
-            include_list.append((item.text(0), item.data(0, Qt.UserRole)))
+            include_list.append((item.text(0), item.data(0, Qt.ItemDataRole.UserRole)))
 
         self.config.setInclude(include_list)
 
@@ -1501,7 +1658,7 @@ class SettingsDialog(QDialog):
         self.config.setProfileIntValue(
             'qt.settingsdialog.exclude.SortOrder',
             self.listExclude.header().sortIndicatorOrder())
-        self.listExclude.sortItems(1, Qt.AscendingOrder)
+        self.listExclude.sortItems(1, Qt.SortOrder.AscendingOrder)
 
         exclude_list = []
         for index in range(self.listExclude.topLevelItemCount()):
@@ -1530,6 +1687,8 @@ class SettingsDialog(QDialog):
         self.config.setScheduleRepeatedUnit(
             self.comboScheduleRepeatedUnit.itemData(
                 self.comboScheduleRepeatedUnit.currentIndex()))
+
+        self.config.setScheduleDebug(self.cbScheduleDebug.isChecked())
 
         # auto-remove
         self.config.setRemoveOldSnapshots(
@@ -1587,6 +1746,7 @@ class SettingsDialog(QDialog):
         self.config.setPreserveXattr(self.cbPreserveXattr.isChecked())
         self.config.setCopyUnsafeLinks(self.cbCopyUnsafeLinks.isChecked())
         self.config.setCopyLinks(self.cbCopyLinks.isChecked())
+        self.config.setOneFileSystem(self.cbOneFileSystem.isChecked())
         self.config.setRsyncOptions(self.cbRsyncOptions.isChecked(),
                                     self.txtRsyncOptions.text())
         self.config.setSshPrefix(self.cbSshPrefix.isChecked(),
@@ -1626,6 +1786,9 @@ class SettingsDialog(QDialog):
                     self.config.sshUser(),
                     self.config.sshHost(),
                     port=str(self.config.sshPort()),
+                    proxy_user=self.config.sshProxyUser(),
+                    proxy_host=self.config.sshProxyHost(),
+                    proxy_port=self.config.sshProxyPort(),
                     askPass=tools.which('backintime-askpass'),
                     cipher=self.config.sshCipher()
                 )
@@ -1717,7 +1880,9 @@ class SettingsDialog(QDialog):
         messagebox.critical(self, message)
 
     def questionHandler(self, message):
-        return QMessageBox.Yes == messagebox.warningYesNo(self, message)
+        answer = messagebox.warningYesNo(self, message)
+
+        return answer == QMessageBox.StandardButton.Yes
 
     def updateRemoveOlder(self):
         enabled = self.cbRemoveOlder.isChecked()
@@ -1738,10 +1903,10 @@ class SettingsDialog(QDialog):
             item.setIcon(0, self.icon.FILE)
 
         item.setText(0, data[0])
-        item.setData(0, Qt.UserRole, data[1])
+        item.setData(0, Qt.ItemDataRole.UserRole, data[1])
         self.listIncludeCount += 1
         item.setText(1, str(self.listIncludeCount).zfill(6))
-        item.setData(1, Qt.UserRole, self.listIncludeCount)
+        item.setData(1, Qt.ItemDataRole.UserRole, self.listIncludeCount)
         self.listInclude.addTopLevelItem(item)
 
         if self.listInclude.currentItem() is None:
@@ -1749,18 +1914,14 @@ class SettingsDialog(QDialog):
 
         return item
 
-    def addExclude(self, pattern):
+    def _add_exclude_pattern(self, pattern):
         item = QTreeWidgetItem()
         item.setText(0, pattern)
-        item.setData(0, Qt.UserRole, pattern)
-        self.listExcludeCount += 1
-        item.setText(1, str(self.listExcludeCount).zfill(6))
-        item.setData(1, Qt.UserRole, self.listExcludeCount)
-        self.formatExcludeItem(item)
-        self.listExclude.addTopLevelItem(item)
+        item.setData(0, Qt.ItemDataRole.UserRole, pattern)
+        self._formatExcludeItem(item)
 
-        if self.listExclude.currentItem() is None:
-            self.listExclude.setCurrentItem(item)
+        # Add item to the widget
+        self.listExclude.addTopLevelItem(item)
 
         return item
 
@@ -1805,20 +1966,31 @@ class SettingsDialog(QDialog):
         if self.listExclude.topLevelItemCount() > 0:
             self.listExclude.setCurrentItem(self.listExclude.topLevelItem(0))
 
-    def addExclude_(self, pattern):
+        self._update_exclude_recommend_label()
+
+    def addExclude(self, pattern):
+        """Initiate adding a new exclude pattern to the list widget.
+
+        See `_add_exclude_pattern()` also.
+        """
         if not pattern:
             return
 
-        for index in range(self.listExclude.topLevelItemCount()):
-            item = self.listExclude.topLevelItem(index)
-            if pattern == item.text(0):
-                return
+        # Duplicate?
+        if self.listExclude.findItems(pattern, Qt.MatchFlag.MatchFixedString):
+            return
 
-        self.addExclude(pattern)
+        # Create new entry and add it to the list widget.
+        item = self._add_exclude_pattern(pattern)
+
+        # Select/highlight that entry.
+        self.listExclude.setCurrentItem(item)
+
+        self._update_exclude_recommend_label()
 
     def btnExcludeAddClicked(self):
         dlg = QInputDialog(self)
-        dlg.setInputMode(QInputDialog.TextInput)
+        dlg.setInputMode(QInputDialog.InputMode.TextInput)
         dlg.setWindowTitle(_('Exclude pattern'))
         dlg.setLabelText('')
         dlg.resize(400, 0)
@@ -1829,19 +2001,19 @@ class SettingsDialog(QDialog):
         if not pattern:
             return
 
-        self.addExclude_(pattern)
+        self.addExclude(pattern)
 
     def btnExcludeFileClicked(self):
         for path in qttools.getOpenFileNames(self, _('Exclude file')):
-            self.addExclude_(path)
+            self.addExclude(path)
 
     def btnExcludeFolderClicked(self):
         for path in qttools.getExistingDirectories(self, _('Exclude folder')):
-            self.addExclude_(path)
+            self.addExclude(path)
 
     def btnExcludeDefaultClicked(self):
         for path in self.config.DEFAULT_EXCLUDE:
-            self.addExclude_(path)
+            self.addExclude(path)
 
     def btnIncludeRemoveClicked(self):
         for item in self.listInclude.selectedItems():
@@ -1956,33 +2128,52 @@ class SettingsDialog(QDialog):
                               .format(path=key))
 
     def comboModesChanged(self, *params):
+        """Hide/show widget elements related to one of
+        the four snapshot modes.
+        """
+
         if not params:
             index = self.comboModes.currentIndex()
         else:
             index = params[0]
+
         active_mode = str(self.comboModes.itemData(index))
+
         if active_mode != self.mode:
+
+            # DevNote (buhtz): Widgets of the GUI related to the four
+            # snapshot modes are acccesed via "getattr(self, ...)".
+            # These are 'Local', 'Ssh', 'LocalEncfs', 'SshEncfs'
             for mode in list(self.config.SNAPSHOT_MODES.keys()):
+                # Hide all widgets
                 getattr(self, 'mode%s' % tools.camelCase(mode)).hide()
+
             for mode in list(self.config.SNAPSHOT_MODES.keys()):
+                # Show up the widget related to the selected mode.
                 if active_mode == mode:
                     getattr(self, 'mode%s' % tools.camelCase(mode)).show()
+
             self.mode = active_mode
 
         if self.config.modeNeedPassword(active_mode):
+
             self.lblPassword1.setText(
                 self.config.SNAPSHOT_MODES[active_mode][2] + ':')
+
             self.groupPassword1.show()
+
             if self.config.modeNeedPassword(active_mode, 2):
                 self.lblPassword2.setText(
                     self.config.SNAPSHOT_MODES[active_mode][3] + ':')
                 self.lblPassword2.show()
                 self.txtPassword2.show()
                 qttools.equalIndent(self.lblPassword1, self.lblPassword2)
+
             else:
                 self.lblPassword2.hide()
                 self.txtPassword2.hide()
                 qttools.equalIndent(self.lblPassword1)
+
         else:
             self.groupPassword1.hide()
 
@@ -1990,9 +2181,11 @@ class SettingsDialog(QDialog):
             self.lblSshEncfsExcludeWarning.show()
         else:
             self.lblSshEncfsExcludeWarning.hide()
+
         self.updateExcludeItems()
 
         enabled = active_mode in ('ssh', 'ssh_encfs')
+
         self.cbNiceOnRemote.setEnabled(enabled)
         self.cbIoniceOnRemote.setEnabled(enabled)
         self.cbNocacheOnRemote.setEnabled(enabled)
@@ -2023,32 +2216,72 @@ class SettingsDialog(QDialog):
     def updateExcludeItems(self):
         for index in range(self.listExclude.topLevelItemCount()):
             item = self.listExclude.topLevelItem(index)
-            self.formatExcludeItem(item)
+            self._formatExcludeItem(item)
 
-    def formatExcludeItem(self, item):
-        no_encr_wildcard = tools.patternHasNotEncryptableWildcard(item.text(0))
-        if self.mode == 'ssh_encfs' and no_encr_wildcard:
-            item.setIcon(0, self.icon.INVALID_EXCLUDE)
-            item.setBackground(0, QPalette().brush(QPalette.Active,
-                                                   QPalette.Link))
 
-        elif item.text(0) in self.config.DEFAULT_EXCLUDE:
-            item.setIcon(0, self.icon.DEFAULT_EXCLUDE)
-            item.setBackground(0, QBrush())
+    def _format_exclude_item_encfs_invalid(self, item):
+        """Modify visual appearance of an item in the exclude list widget to
+        express that the item is invalid.
+
+        See :py:func:`_formatExcludeItem` for details.
+        """
+        # Icon
+        item.setIcon(0, self.icon.INVALID_EXCLUDE)
+
+        # ToolTip
+        item.setData(
+            0,
+            Qt.ItemDataRole.ToolTipRole,
+            _("Disabled because this pattern is not functional in "
+              "mode 'SSH encrypted'.")
+        )
+
+        # Fore- and Backgroundcolor (as disabled)
+        item.setBackground(0, QPalette().brush(QPalette.ColorGroup.Disabled,
+                                                QPalette.ColorRole.Window))
+        item.setForeground(0, QPalette().brush(QPalette.ColorGroup.Disabled,
+                                                QPalette.ColorRole.Text))
+
+
+    def _formatExcludeItem(self, item):
+        """Modify visual appearance of an item in the exclude list widget.
+        """
+        if (self.mode == 'ssh_encfs'
+                and tools.patternHasNotEncryptableWildcard(item.text(0))):
+            # Invalid item (because of encfs restrictions)
+            self._format_exclude_item_encfs_invalid(item)
 
         else:
-            item.setIcon(0, self.icon.EXCLUDE)
+            # default background color
             item.setBackground(0, QBrush())
+            item.setForeground(0, QBrush())
+
+            # Remove items tooltip
+            item.setData(0, Qt.ItemDataRole.ToolTipRole, None)
+
+            # Icon: default exclude item
+            if item.text(0) in self.config.DEFAULT_EXCLUDE:
+                item.setIcon(0, self.icon.DEFAULT_EXCLUDE)
+
+            else:
+                # Icon: user definied
+                item.setIcon(0, self.icon.EXCLUDE)
+
 
     def customSortOrder(self, header, loop, newColumn, newOrder):
-        if newColumn == 0 and newOrder == Qt.AscendingOrder:
+
+        if newColumn == 0 and newOrder == Qt.SortOrder.AscendingOrder:
+
             if loop:
-                newColumn, newOrder = 1, Qt.AscendingOrder
+                newColumn, newOrder = 1, Qt.SortOrder.AscendingOrder
                 header.setSortIndicator(newColumn, newOrder)
                 loop = False
+
             else:
                 loop = True
+
         header.model().sort(newColumn, newOrder)
+
         return loop
 
     def includeCustomSortOrder(self, *args):
@@ -2069,11 +2302,11 @@ class SettingsDialog(QDialog):
         return ' (%s: %s)' % (_('default'), value_)
 
     def restoreConfig(self, *args):
-        RestoreConfigDialog(self).exec_()
+        RestoreConfigDialog(self).exec()
         self.updateProfiles()
 
     def editUserCallback(self, *args):
-        EditUserCallback(self).exec_()
+        EditUserCallback(self).exec()
 
     def accept(self):
         if self.validate():
@@ -2117,7 +2350,7 @@ class RestoreConfigDialog(QDialog):
         samplePath = os.path.join(
             'backintime',
             self.config.host(),
-            self.config.user(), '1',
+            getpass.getuser(), '1',
             snapshots.SID(datetime.datetime.now(), self.config).sid
         )
 
@@ -2142,14 +2375,15 @@ class RestoreConfigDialog(QDialog):
         self.treeViewModel = QFileSystemModel(self)
         self.treeViewModel.setRootPath(QDir().rootPath())
         self.treeViewModel.setReadOnly(True)
-        self.treeViewModel.setFilter(QDir.AllDirs |
-                                     QDir.NoDotAndDotDot | QDir.Hidden)
+        self.treeViewModel.setFilter(QDir.Filter.AllDirs |
+                                     QDir.Filter.NoDotAndDotDot |
+                                     QDir.Filter.Hidden)
 
         self.treeViewFilterProxy = QSortFilterProxyModel(self)
         self.treeViewFilterProxy.setDynamicSortFilter(True)
         self.treeViewFilterProxy.setSourceModel(self.treeViewModel)
 
-        self.treeViewFilterProxy.setFilterRegExp(r'^[^\.]')
+        self.treeViewFilterProxy.setFilterRegularExpression(r'^[^\.]')
 
         self.treeView.setModel(self.treeViewFilterProxy)
         for col in range(self.treeView.header().count()):
@@ -2161,7 +2395,7 @@ class RestoreConfigDialog(QDialog):
         layout.addWidget(self.treeView)
 
         # context menu
-        self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.treeView.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.onContextMenu)
         self.contextMenu = QMenu(self)
         self.btnShowHidden = self.contextMenu.addAction(
@@ -2209,9 +2443,9 @@ class RestoreConfigDialog(QDialog):
 
         buttonBox = QDialogButtonBox(self)
         self.restoreButton = buttonBox.addButton(
-            _('Restore'), QDialogButtonBox.AcceptRole)
+            _('Restore'), QDialogButtonBox.ButtonRole.AcceptRole)
         self.restoreButton.setEnabled(False)
-        buttonBox.addButton(QDialogButtonBox.Cancel)
+        buttonBox.addButton(QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
         layout.addWidget(buttonBox)
@@ -2259,9 +2493,9 @@ class RestoreConfigDialog(QDialog):
         """
         try to find config in couple possible subfolders
         """
-        snapshotPath = os.path.join('backintime',
-                                    self.config.host(),
-                                    self.config.user())
+        snapshotPath = os.path.join(
+            'backintime', self.config.host(), getpass.getuser())
+
         tryPaths = ['', '..', 'last_snapshot']
         tryPaths.extend([
             os.path.join(snapshotPath, str(i), 'last_snapshot')
@@ -2274,9 +2508,14 @@ class RestoreConfigDialog(QDialog):
 
                 try:
                     cfg = config.Config(cfgPath)
+
                     if cfg.isConfigured():
                         return cfg
-                except:
+
+                except Exception as exc:
+                    logger.error(
+                        f'Unhandled branch in code! See in {__file__} '
+                        f'SettingsDialog.searchConfig()\n{exc}')
                     pass
 
         return
@@ -2329,13 +2568,13 @@ class RestoreConfigDialog(QDialog):
         self.wait.deleteLater()
 
     def onContextMenu(self, point):
-        self.contextMenu.exec_(self.treeView.mapToGlobal(point))
+        self.contextMenu.exec(self.treeView.mapToGlobal(point))
 
     def onBtnShowHidden(self, checked):
         if checked:
-            self.treeViewFilterProxy.setFilterRegExp(r'')
+            self.treeViewFilterProxy.setFilterRegularExpression(r'')
         else:
-            self.treeViewFilterProxy.setFilterRegExp(r'^[^\.]')
+            self.treeViewFilterProxy.setFilterRegularExpression(r'^[^\.]')
 
     def accept(self):
         """
@@ -2346,11 +2585,11 @@ class RestoreConfigDialog(QDialog):
             self.config.dict = self.restoreConfig.dict
         super(RestoreConfigDialog, self).accept()
 
-    def exec_(self):
+    def exec(self):
         """
         stop the scan thread if it is still running after dialog was closed.
         """
-        ret = super(RestoreConfigDialog, self).exec_()
+        ret = super(RestoreConfigDialog, self).exec()
         self.scan.stop()
         return ret
 
@@ -2442,7 +2681,7 @@ class EditUserCallback(QDialog):
         layout.addWidget(self.edit)
 
         btnBox = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             parent=self)
 
         btnBox.accepted.connect(self.accept)

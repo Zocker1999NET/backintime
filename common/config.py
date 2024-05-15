@@ -34,12 +34,8 @@ import sys
 import datetime
 import socket
 import random
+import getpass
 import shlex
-try:
-    import pwd
-except ImportError:
-    import getpass
-    pwd = None
 
 # Workaround: Mostly relevant on TravisCI but not exclusively.
 # While unittesting and without regular invocation of BIT the GNU gettext
@@ -62,12 +58,12 @@ from exceptions import PermissionDeniedByPolicy, \
                        InvalidChar, \
                        InvalidCmd, \
                        LimitExceeded
+import version
 
 
 class Config(configfile.ConfigFileWithProfiles):
     APP_NAME = 'Back In Time'
-    VERSION = '1.4.2-dev'
-    COPYRIGHT = 'Copyright (C) 2008-2023 Oprea Dan, Bart de Koning, ' \
+    COPYRIGHT = 'Copyright (C) 2008-2024 Oprea Dan, Bart de Koning, ' \
                 'Richard Bailey, Germar Reitze, Christian Buhtz, Michael Büker, Jürgen Altfeld et al.'
 
     CONFIG_VERSION = 6
@@ -116,6 +112,13 @@ class Config(configfile.ConfigFileWithProfiles):
         '/var/backups/*',
         '.Private',
         '/swapfile',
+        # Discord files
+        # See also: https://github.com/bit-team/backintime/issues/1555#issuecomment-1787230708
+        'SingletonLock',
+        'SingletonCookie',
+        # Mozilla files
+        # See also: https://github.com/bit-team/backintime/issues/1555#issuecomment-1787111063
+        'lock'
     ]
 
     DEFAULT_RUN_NICE_FROM_CRON = True
@@ -133,15 +136,17 @@ class Config(configfile.ConfigFileWithProfiles):
     PLUGIN_MANAGER = pluginmanager.PluginManager()
 
     def __init__(self, config_path=None, data_path=None):
+        """Back In Time configuration (and much more then this).
+
+        Args:
+            config_path (str): Full path to the config file
+                (default: `~/.config/backintime/config`).
+            data_path (str): It is $XDG_DATA_HOME (default: `~/.local/share`).
+        """
         # Note: The main profiles name here is translated using the systems
         # current locale because the language code in the config file wasn't
         # read yet.
         configfile.ConfigFileWithProfiles.__init__(self, _('Main profile'))
-
-        self._APP_PATH = tools.backintimePath()
-        self._DOC_PATH = os.path.join(tools.sharePath(), 'doc', 'backintime-common')
-        if os.path.exists(os.path.join(self._APP_PATH, 'LICENSE')):
-            self._DOC_PATH = self._APP_PATH
 
         self._GLOBAL_CONFIG_PATH = '/etc/backintime/config'
 
@@ -167,18 +172,22 @@ class Config(configfile.ConfigFileWithProfiles):
         tools.makeDirs(self._LOCAL_MOUNT_ROOT)
 
         self._DEFAULT_CONFIG_PATH = os.path.join(self._LOCAL_CONFIG_FOLDER, 'config')
+
         if config_path is None:
             self._LOCAL_CONFIG_PATH = self._DEFAULT_CONFIG_PATH
         else:
             self._LOCAL_CONFIG_PATH = os.path.abspath(config_path)
             self._LOCAL_CONFIG_FOLDER = os.path.dirname(self._LOCAL_CONFIG_PATH)
-        old_path = os.path.join(self._LOCAL_CONFIG_FOLDER, 'config2')
 
-        if os.path.exists(old_path):
-            if os.path.exists(self._LOCAL_CONFIG_PATH):
-                os.remove(old_path)
-            else:
-                os.rename(old_path, self._LOCAL_CONFIG_PATH)
+        # (buhtz) Introduced in 2009 via commit 5b26575be4.
+        # Ready to remove after 15 years.
+        # old_path = os.path.join(self._LOCAL_CONFIG_FOLDER, 'config2')
+
+        # if os.path.exists(old_path):
+        #     if os.path.exists(self._LOCAL_CONFIG_PATH):
+        #         os.remove(old_path)
+        #     else:
+        #         os.rename(old_path, self._LOCAL_CONFIG_PATH)
 
         # Load global config file
         self.load(self._GLOBAL_CONFIG_PATH)
@@ -202,7 +211,7 @@ class Config(configfile.ConfigFileWithProfiles):
                              "doesn't support upgrading config from version "   \
                              "< 1.0 anymore. Please use BackInTime version "    \
                              "<= 1.1.12 to upgrade the config to a more recent "\
-                             "version.".format(self.VERSION))
+                             "version.".format(version.__version__))
                 #TODO: add popup warning
                 sys.exit(2)
 
@@ -386,17 +395,6 @@ class Config(configfile.ConfigFileWithProfiles):
 
                         return False
         return True
-
-    def user(self):
-        """
-        portable way to get username
-        cc by-sa 3.0      http://stackoverflow.com/a/19865396/1139841
-        author: techtonik http://stackoverflow.com/users/239247/techtonik
-        """
-        if pwd:
-            return pwd.getpwuid(os.geteuid()).pw_name
-        else:
-            return getpass.getuser()
 
     def pid(self):
         return str(os.getpid())
@@ -619,7 +617,7 @@ class Config(configfile.ConfigFileWithProfiles):
 
     def sshUser(self, profile_id = None):
         #?Remote SSH user;;local users name
-        return self.profileStrValue('snapshots.ssh.user', self.user(), profile_id)
+        return self.profileStrValue('snapshots.ssh.user', getpass.getuser(), profile_id)
 
     def setSshUser(self, value, profile_id = None):
         self.setProfileStrValue('snapshots.ssh.user', value, profile_id)
@@ -654,6 +652,30 @@ class Config(configfile.ConfigFileWithProfiles):
 
     def setSshPrivateKeyFile(self, value, profile_id = None):
         self.setProfileStrValue('snapshots.ssh.private_key_file', value, profile_id)
+
+    def sshProxyHost(self, profile_id=None):
+        #?Proxy host used to connect to remote host.;;IP or domain address
+        return self.profileStrValue('snapshots.ssh.proxy_host', '', profile_id)
+
+    def setSshProxyHost(self, value, profile_id=None):
+        self.setProfileStrValue('snapshots.ssh.proxy_host', value, profile_id)
+
+    def sshProxyPort(self, profile_id=None):
+        #?Proxy host port used to connect to remote host.;0-65535
+        return self.profileIntValue(
+            'snapshots.ssh.proxy_host_port', '22', profile_id)
+
+    def setSshProxyPort(self, value, profile_id = None):
+        self.setProfileIntValue(
+            'snapshots.ssh.proxy_host_port', value, profile_id)
+
+    def sshProxyUser(self, profile_id=None):
+        #?Remote SSH user;;local users name
+        return self.profileStrValue(
+            'snapshots.ssh.proxy_user', getpass.getuser(), profile_id)
+
+    def setSshProxyUser(self, value, profile_id=None):
+        self.setProfileStrValue('snapshots.ssh.proxy_user', value, profile_id)
 
     def sshMaxArgLength(self, profile_id = None):
         #?Maximum command length of commands run on remote host. This can be tested
@@ -700,16 +722,16 @@ class Config(configfile.ConfigFileWithProfiles):
         return args
 
     def sshCommand(self,
-                   cmd = None,
-                   custom_args = None,
-                   port = True,
-                   cipher = True,
-                   user_host = True,
-                   ionice = True,
-                   nice = True,
-                   quote = False,
-                   prefix = True,
-                   profile_id = None):
+                   cmd=None,
+                   custom_args=None,
+                   port=True,
+                   cipher=True,
+                   user_host=True,
+                   ionice=True,
+                   nice=True,
+                   quote=False,
+                   prefix=True,
+                   profile_id=None):
         """
         Return SSH command with all arguments.
 
@@ -728,20 +750,35 @@ class Config(configfile.ConfigFileWithProfiles):
         Returns:
             list:               ssh command with chosen arguments
         """
+        # Refactor: Use of assert is discouraged in productive code.
+        # Raise Exceptions instead.
         assert cmd is None or isinstance(cmd, list), "cmd '{}' is not list instance".format(cmd)
         assert custom_args is None or isinstance(custom_args, list), "custom_args '{}' is not list instance".format(custom_args)
-        ssh  = ['ssh']
+
+        ssh = ['ssh']
         ssh += self.sshDefaultArgs(profile_id)
+
+        # Proxy (aka Jump host)
+        if self.sshProxyHost(profile_id):
+            ssh += ['-J', '{}@{}:{}'.format(
+                self.sshProxyUser(profile_id),
+                self.sshProxyHost(profile_id),
+                self.sshProxyPort(profile_id)
+            )]
+
         # remote port
         if port:
             ssh += ['-p', str(self.sshPort(profile_id))]
+
         # cipher used to transfer data
         c = self.sshCipher(profile_id)
         if cipher and c != 'default':
-            ssh += ['-o', 'Ciphers={}'.format(c)]
+            ssh += ['-o', f'Ciphers={c}']
+
         # custom arguments
         if custom_args:
             ssh += custom_args
+
         # user@host
         if user_host:
             ssh.append('{}@{}'.format(self.sshUser(profile_id),
@@ -749,25 +786,32 @@ class Config(configfile.ConfigFileWithProfiles):
         # quote the command running on remote host
         if quote and cmd:
             ssh.append("'")
+
         # run 'ionice' on remote host
         if ionice and self.ioniceOnRemote(profile_id) and cmd:
             ssh += ['ionice', '-c2', '-n7']
+
         # run 'nice' on remote host
         if nice and self.niceOnRemote(profile_id) and cmd:
             ssh += ['nice', '-n19']
+
         # run prefix on remote host
         if prefix and cmd and self.sshPrefixEnabled(profile_id):
-            ssh += self.sshPrefixCmd(profile_id, cmd_type = list)
+            ssh += self.sshPrefixCmd(profile_id, cmd_type=type(cmd))
+
         # add the command
         if cmd:
             ssh += cmd
+
         # close quote
         if quote and cmd:
             ssh.append("'")
 
+        logger.debug(f'SSH command: {ssh}', self)
+
         return ssh
 
-    #ENCFS
+    # EncFS
     def localEncfsPath(self, profile_id = None):
         #?Where to save snapshots in mode 'local_encfs'.;absolute path
         return self.profileStrValue('snapshots.local_encfs.path', '', profile_id)
@@ -837,9 +881,9 @@ class Config(configfile.ConfigFileWithProfiles):
             profile_id = self.currentProfile()
         return 'profile_id_%s' % profile_id
 
-    def hostUserProfileDefault(self, profile_id = None):
+    def hostUserProfileDefault(self, profile_id=None):
         host = socket.gethostname()
-        user = self.user()
+        user = getpass.getuser()
         profile = profile_id
         if profile is None:
             profile = self.currentProfile()
@@ -944,6 +988,13 @@ class Config(configfile.ConfigFileWithProfiles):
 
     def setScheduleMode(self, value, profile_id = None):
         self.setProfileIntValue('schedule.mode', value, profile_id)
+
+    def scheduleDebug(self, profile_id = None):
+        #?Enable debug output to system log for schedule mode.
+        return self.profileBoolValue('schedule.debug', False, profile_id)
+
+    def setScheduleDebug(self, value, profile_id = None):
+        self.setProfileBoolValue('schedule.debug', value, profile_id)
 
     def scheduleTime(self, profile_id = None):
         #?Position-coded number with the format "hhmm" to specify the hour
@@ -1259,12 +1310,20 @@ class Config(configfile.ConfigFileWithProfiles):
         return self.setProfileBoolValue('snapshots.copy_unsafe_links', value, profile_id)
 
     def copyLinks(self, profile_id = None):
-        #?When  symlinks  are  encountered, the item that they point to
+        #?When symlinks are encountered, the item that they point to
         #?(the reference) is copied, rather than the symlink.
         return self.profileBoolValue('snapshots.copy_links', False, profile_id)
 
     def setCopyLinks(self, value, profile_id = None):
         return self.setProfileBoolValue('snapshots.copy_links', value, profile_id)
+
+    def oneFileSystem(self, profile_id = None):
+        #?Use rsync's "--one-file-system" to avoid crossing filesystem
+        #?boundaries when recursing.
+        return self.profileBoolValue('snapshots.one_file_system', False, profile_id)
+
+    def setOneFileSystem(self, value, profile_id = None):
+        return self.setProfileBoolValue('snapshots.one_file_system', value, profile_id)
 
     def rsyncOptionsEnabled(self, profile_id = None):
         #?Past additional options to rsync
@@ -1305,17 +1364,25 @@ class Config(configfile.ConfigFileWithProfiles):
         self.setProfileBoolValue('snapshots.ssh.prefix.enabled', enabled, profile_id)
         self.setProfileStrValue('snapshots.ssh.prefix.value', value, profile_id)
 
-    def sshPrefixCmd(self, profile_id = None, cmd_type = str):
+    def sshPrefixCmd(self, profile_id=None, cmd_type=str):
+        """Return the config value of sshPrefix if enabled.
+
+        Dev note by buhtz (2024-04): Good opportunity to refactor. To much
+        implicit behavior in it.
+        """
         if cmd_type == list:
             if self.sshPrefixEnabled(profile_id):
                 return shlex.split(self.sshPrefix(profile_id))
-            else:
-                return []
+
+            return []
+
         if cmd_type == str:
             if self.sshPrefixEnabled(profile_id):
                 return self.sshPrefix(profile_id).strip() + ' '
-            else:
-                return ''
+
+            return ''
+
+        raise TypeError(f'Unable to handle type {cmd_type}.')
 
     def continueOnErrors(self, profile_id = None):
         #?Continue on errors. This will keep incomplete snapshots rather than
@@ -1360,30 +1427,29 @@ class Config(configfile.ConfigFileWithProfiles):
     def setGlobalFlock(self, value):
         self.setBoolValue('global.use_flock', value)
 
-    def appPath(self):
-        return self._APP_PATH
-
-    def docPath(self):
-        return self._DOC_PATH
-
     def appInstanceFile(self):
         return os.path.join(self._LOCAL_DATA_FOLDER, 'app.lock')
 
-    def fileId(self, profile_id = None):
+    def fileId(self, profile_id=None):
         if profile_id is None:
             profile_id = self.currentProfile()
+
         if profile_id == '1':
             return ''
+
         return profile_id
 
     def takeSnapshotLogFile(self, profile_id = None):
-        return os.path.join(self._LOCAL_DATA_FOLDER, "takesnapshot_%s.log" % self.fileId(profile_id))
+        return os.path.join(self._LOCAL_DATA_FOLDER,
+                            "takesnapshot_%s.log" % self.fileId(profile_id))
 
     def takeSnapshotMessageFile(self, profile_id = None):
-        return os.path.join(self._LOCAL_DATA_FOLDER, "worker%s.message" % self.fileId(profile_id))
+        return os.path.join(self._LOCAL_DATA_FOLDER,
+                            "worker%s.message" % self.fileId(profile_id))
 
     def takeSnapshotProgressFile(self, profile_id = None):
-        return os.path.join(self._LOCAL_DATA_FOLDER, "worker%s.progress" % self.fileId(profile_id))
+        return os.path.join(self._LOCAL_DATA_FOLDER,
+                            "worker%s.progress" % self.fileId(profile_id))
 
     def takeSnapshotInstanceFile(self, profile_id=None):
         return os.path.join(
@@ -1436,7 +1502,7 @@ class Config(configfile.ConfigFileWithProfiles):
         return profile_id + '_' + profile_name.replace(' ', '_')
 
     def udevRulesPath(self):
-        return os.path.join('/etc/udev/rules.d', '99-backintime-%s.rules' % self.user())
+        return os.path.join('/etc/udev/rules.d', '99-backintime-%s.rules' % getpass.getuser())
 
     def restoreLogFile(self, profile_id = None):
         return os.path.join(self._LOCAL_DATA_FOLDER, "restore_%s.log" % self.fileId(profile_id))
@@ -1451,23 +1517,6 @@ class Config(configfile.ConfigFileWithProfiles):
 
     def encfsconfigBackupFolder(self, profile_id = None):
         return os.path.join(self._LOCAL_DATA_FOLDER, 'encfsconfig_backup_%s' % self.fileId(profile_id))
-
-    def license(self):
-        return tools.readFile(os.path.join(self.docPath(), 'LICENSE'), '')
-
-    def translations(self):
-        return tools.readFile(os.path.join(self.docPath(), 'TRANSLATIONS'), '')
-
-    def authors(self):
-        return tools.readFile(os.path.join(self.docPath(), 'AUTHORS'), '')
-
-    def changelog(self):
-        for i in ('CHANGES', 'changelog'):
-            f = os.path.join(self.docPath(), i)
-            clog = tools.readFile(f, '')
-            if clog:
-                return clog
-        return ''
 
     def preparePath(self, path):
         if len(path) > 1:
@@ -1745,28 +1794,59 @@ class Config(configfile.ConfigFileWithProfiles):
         return cron_line
 
     def cronCmd(self, profile_id):
-        if not tools.checkCommand('backintime'):
-            logger.error("Command 'backintime' not found", self)
-            return
+        """Generates the command used in the crontab file based on the settings
+        for the current profile.
+
+        Returns:
+            str: The crontab line.
+        """
+
+        # buhtz (2024-04): IMHO meaningless in productive environments.
+        # if not tools.checkCommand('backintime'):
+        #     logger.error("Command 'backintime' not found", self)
+        #     return
+
+        # Get full path of the Back In Time binary
         cmd = tools.which('backintime') + ' '
+
+        # The "--profile-id" argument is used only for profiles different from
+        # first profile
         if profile_id != '1':
             cmd += '--profile-id %s ' % profile_id
+
+        # User defined path to config file
         if not self._LOCAL_CONFIG_PATH is self._DEFAULT_CONFIG_PATH:
             cmd += '--config %s ' % self._LOCAL_CONFIG_PATH
-        if logger.DEBUG:
+
+        # Enable debug output
+        if self.scheduleDebug(profile_id):
             cmd += '--debug '
+
+        # command
         cmd += 'backup-job'
+
+        # Redirect stdout to nirvana
         if self.redirectStdoutInCron(profile_id):
             cmd += ' >/dev/null'
+
+        # Redirect stderr ...
         if self.redirectStderrInCron(profile_id):
+
             if self.redirectStdoutInCron(profile_id):
+                # ... to stdout
                 cmd += ' 2>&1'
             else:
+                # ... to nirvana
                 cmd += ' 2>/dev/null'
+
+        # IO priority: low (-n7) in "best effort" class (-c2)
         if self.ioniceOnCron(profile_id) and tools.checkCommand('ionice'):
             cmd = tools.which('ionice') + ' -c2 -n7 ' + cmd
+
+        # CPU priority: very low
         if self.niceOnCron(profile_id) and tools.checkCommand('nice'):
             cmd = tools.which('nice') + ' -n19 ' + cmd
+
         return cmd
 
 

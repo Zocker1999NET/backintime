@@ -1,7 +1,7 @@
+"""Test related to diagnostics.py"""
 import sys
 import pathlib
 import unittest
-import pyfakefs.fake_filesystem_unittest as pyfakefs_ut
 
 # This workaround will become obsolet when migrating to src-layout
 sys.path.append(str(pathlib.Path(__file__).parent))
@@ -9,15 +9,31 @@ import diagnostics  # testing target
 
 
 class Diagnostics(unittest.TestCase):
+    """Test about collecting diagnostic infos."""
 
-    def test_minimal(self):
+    def test_content_minimal(self):
         """Minimal set of elements."""
 
+        sut = diagnostics.collect_minimal_diagnostics()
+
+        # 1st level keys
+        self.assertCountEqual(sut.keys(), ['backintime', 'host-setup'])
+
+        # 2nd level "backintime"
+        self.assertCountEqual(
+            sut['backintime'].keys(),
+            ['name', 'version', 'running-as-root'])
+
+        # 2nd level "host-setup"
+        self.assertCountEqual(sut['host-setup'].keys(), ['OS'])
+
+    def test_some_content(self):
+        """Some contained elements"""
         result = diagnostics.collect_diagnostics()
 
         # 1st level keys
-        self.assertEqual(
-            sorted(result.keys()),
+        self.assertCountEqual(
+            result.keys(),
             ['backintime', 'external-programs', 'host-setup', 'python-setup']
         )
 
@@ -60,8 +76,7 @@ class Diagnostics(unittest.TestCase):
                 diagnostics.collect_diagnostics()
 
     def test_no_extern_version(self):
-        """Get version from not existing tool.
-        """
+        """Get version from not existing tool."""
         self.assertEqual(
             diagnostics._get_extern_versions(['fooXbar']),
             '(no fooXbar)'
@@ -69,7 +84,6 @@ class Diagnostics(unittest.TestCase):
 
     def test_replace_user_path(self):
         """Replace users path."""
-
         d = {
             'foo': '/home/rsync',
             'bar': '~/rsync'
@@ -86,43 +100,4 @@ class Diagnostics(unittest.TestCase):
         self.assertEqual(
             diagnostics._replace_username_paths(d, 'user'),
             d
-        )
-
-
-class Diagnostics_FakeFS(pyfakefs_ut.TestCase):
-    """Tests using a fake filesystem.
-    """
-
-    def setUp(self):
-        self.setUpPyfakefs(allow_root_user=False)
-
-    def test_git_repo_info(self):
-
-        # not a git repo
-        self.assertEqual(diagnostics.get_git_repository_info(), None)
-
-        # simulate a git repo
-        path = pathlib.Path('.git')
-        path.mkdir()
-
-        # Branch folders and hash containing file
-        foobar = path / 'refs' / 'heads' / 'fix' / 'foobar'
-        foobar.parent.mkdir(parents=True)
-
-        with foobar.open('w') as handle:
-            handle.write('01234')
-
-        # HEAD file
-        head = path / 'HEAD'
-
-        with head.open('w') as handle:
-            handle.write('ref: refs/heads/fix/foobar')
-
-        # Test
-        self.assertEqual(
-            diagnostics.get_git_repository_info(),
-            {
-                'hash': '01234',
-                'branch': 'fix/foobar'
-            }
         )

@@ -35,21 +35,27 @@
 
 
 VERSION=`cat VERSION`
+
+if [[ $VERSION == *-dev ]]
+then
+    VERSION+="."`git rev-parse --short HEAD`
+fi
+
 echo VERSION: $VERSION
 
 MAINTAINER="Germar Reitze <germar.reitze@gmail.com>"
 # MAINTAINER="BIT Team <dan@le-web.org>"
 # MAINTAINER="BIT Team <bit-dev@python.org>"
 
-update_sphinx_config () {
-  echo "Update '$1'"
-  sed -e "s/^\(\s*\)version = '.*'$/\1version = '$VERSION'/" \
-      -i $1
-}
+# update_sphinx_config () {
+#   echo "Update '$1'"
+#   sed -e "s/^\(\s*\)version = '.*'$/\1version = '$VERSION'/" \
+#       -i $1
+# }
 
-update_config () {
+update_app_version () {
   echo "Update '$1'"
-  sed -e "s/^\(\s*\)VERSION = '.*'$/\1VERSION = '$VERSION'/" \
+  sed -e "s/^\(\s*\)__version__ = '.*'$/\1__version__ = '$VERSION'/" \
       -i $1
 }
 
@@ -84,9 +90,10 @@ update_changelog () {
   echo  " -- ${MAINTAINER}  $(date -R)" >> $1
 }
 
-update_config common/config.py
+update_app_version common/version.py
 
-update_sphinx_config common/doc-dev/conf.py
+# Sphinx now ask "backintime" itself about its version
+# update_sphinx_config common/doc-dev/conf.py
 
 update_man_page common/man/C/backintime.1
 

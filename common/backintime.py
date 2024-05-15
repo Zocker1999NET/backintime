@@ -23,7 +23,7 @@ import subprocess
 from datetime import datetime
 from time import sleep
 import json
-
+import pathlib
 import tools
 # Workaround for situations where startApp() is not invoked.
 # E.g. when using --diagnostics and other argparse.Action
@@ -37,9 +37,10 @@ import mount
 import password
 import encfstools
 import cli
-from diagnostics import collect_diagnostics
+from diagnostics import collect_diagnostics, collect_minimal_diagnostics
 from exceptions import MountException
 from applicationinstance import ApplicationInstance
+from version import __version__
 
 RETURN_OK = 0
 RETURN_ERR = 1
@@ -203,7 +204,7 @@ def createParsers(app_name = 'backintime'):
     parsers['main'] = parser
     parser.add_argument('--version', '-v',
                         action = 'version',
-                        version = '%(prog)s ' + str(config.Config.VERSION),
+                        version = '%(prog)s ' + __version__,
                         help = "show %(prog)s's version number.")
     parser.add_argument('--license',
                         action = printLicense,
@@ -483,12 +484,14 @@ def createParsers(app_name = 'backintime'):
             arg = '-%s' % alias
         else:
             arg = '--%s' % alias
-        group.add_argument(arg,
-                           nargs = nargs,
-                           action = PseudoAliasAction,
-                           help = argparse.SUPPRESS)
 
-def startApp(app_name = 'backintime'):
+        group.add_argument(arg,
+                           nargs=nargs,
+                           action=PseudoAliasAction,
+                           help=argparse.SUPPRESS)
+
+
+def startApp(app_name='backintime'):
     """
     Start the requested command or return config if there was no command
     in arguments.
@@ -503,28 +506,36 @@ def startApp(app_name = 'backintime'):
 
     logger.openlog()
 
-    #parse args
     args = argParse(None)
 
-    #add source path to $PATH environ if running from source
+    # Name, Version, As Root, OS
+    for key, val in collect_minimal_diagnostics().items():
+        logger.debug(f'{key}: {val}')
+
+    # Add source path to $PATH environ if running from source
     if tools.runningFromSource():
         tools.addSourceToPathEnviron()
 
-    #warn about sudo
-    if tools.usingSudo() and os.getenv('BIT_SUDO_WARNING_PRINTED', 'false') == 'false':
-        os.putenv('BIT_SUDO_WARNING_PRINTED', 'true')
-        logger.warning("It looks like you're using 'sudo' to start %(app)s. "
-                       "This will cause some trouble. Please use either 'sudo -i %(app_name)s' "
-                       "or 'pkexec %(app_name)s'."
-                       %{'app_name': app_name, 'app': config.Config.APP_NAME})
+    # Warn about sudo
+    if (tools.usingSudo()
+            and os.getenv('BIT_SUDO_WARNING_PRINTED', 'false') == 'false'):
 
-    #call commands
+        os.putenv('BIT_SUDO_WARNING_PRINTED', 'true')
+        logger.warning(
+            "It looks like you're using 'sudo' to start "
+            f"{config.Config.APP_NAME}. This will cause some trouble. "
+            f"Please use either 'sudo -i {app_name}' or 'pkexec {app_name}'.")
+
+    # Call commands
     if 'func' in dir(args):
         args.func(args)
+
     else:
         setQuiet(args)
         printHeader()
+
         return getConfig(args, False)
+
 
 def argParse(args):
     """
@@ -549,65 +560,73 @@ def argParse(args):
                         that should be merged into ``args``
         """
         for key, value in vars(subArgs).items():
-            #only add new values if it isn't set already or if there really IS a value
+            # Only add new values if it isn't set already or if there really IS
+            # a value
             if getattr(args, key, None) is None or value:
                 setattr(args, key, value)
 
-    #first parse the main parser without subparsers
-    #otherwise positional args in subparsers will be to greedy
-    #but only if -h or --help is not involved because otherwise
-    #help will not work for subcommands
+    # First parse the main parser without subparsers
+    # otherwise positional args in subparsers will be to greedy
+    # but only if -h or --help is not involved because otherwise
+    # help will not work for subcommands
     mainParser = parsers['main']
     sub = []
+
     if '-h' not in sys.argv and '--help' not in sys.argv:
+
         for i in mainParser._actions:
+
             if isinstance(i, argparse._SubParsersAction):
-                #remove subparsers
+                # Remove subparsers
                 mainParser._remove_action(i)
                 sub.append(i)
+
     args, unknownArgs = mainParser.parse_known_args(args)
-    #read subparsers again
+
+    # Read subparsers again
     if sub:
         [mainParser._add_action(i) for i in sub]
 
-    #parse it again for unknown args
+    # Parse it again for unknown args
     if unknownArgs:
         subArgs, unknownArgs = mainParser.parse_known_args(unknownArgs)
         join(args, subArgs)
 
-    #finally parse only the command parser, otherwise we miss
-    #some arguments from command
+    # Finally parse only the command parser, otherwise we miss some arguments
+    # from command
     if unknownArgs and 'command' in args and args.command in parsers:
         commandParser = parsers[args.command]
         subArgs, unknownArgs = commandParser.parse_known_args(unknownArgs)
         join(args, subArgs)
 
-    if 'debug' in args:
+    try:
         logger.DEBUG = args.debug
+    except AttributeError:
+        pass
 
-    dargs = vars(args)
-    logger.debug('Arguments: %s | unknownArgs: %s'
-                 %({arg:dargs[arg] for arg in dargs if dargs[arg]},
-                   unknownArgs))
+    args_dict = vars(args)
+    used_args = {
+        key: args_dict[key]
+        for key
+        in filter(lambda key: args_dict[key] is not None, args_dict)
+    }
+    logger.debug(f'Used argument(s): {used_args}')
+    logger.debug(f'Unknown argument(s): {unknownArgs}')
 
-    #report unknown arguments
-    #but not if we run aliasParser next because we will parse again in there
+    # Report unknown arguments but not if we run aliasParser next because we
+    # will parse again in there.
     if unknownArgs and not ('func' in args and args.func is aliasParser):
-        mainParser.error('Unknown Argument(s): %s' % ', '.join(unknownArgs))
+        mainParser.error(f'Unknown argument(s): {unknownArgs}')
+
     return args
 
 def printHeader():
     """
     Print application name, version and legal notes.
     """
-    version = config.Config.VERSION
-    # Git info is now only shown via --diagnostics
-    # ref, hashid = tools.gitRevisionAndHash()
-    # if ref:
-    #     version += " git branch '{}' hash '{}'".format(ref, hashid)
     print('')
     print('Back In Time')
-    print('Version: ' + version)
+    print('Version: ' + __version__)
     print('')
     print('Back In Time comes with ABSOLUTELY NO WARRANTY.')
     print('This is free software, and you are welcome to redistribute it')
@@ -723,8 +742,8 @@ class printLicense(argparse.Action):
         super(printLicense, self).__init__(*args, **kwargs)
 
     def __call__(self, *args, **kwargs):
-        cfg = config.Config()
-        print(cfg.license())
+        license_path = pathlib.Path(tools.docPath()) / 'LICENSE'
+        print(license_path.read_text('utf-8'))
         sys.exit(RETURN_OK)
 
 class printDiagnostics(argparse.Action):

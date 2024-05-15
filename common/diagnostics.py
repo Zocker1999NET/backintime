@@ -1,10 +1,16 @@
+# SPDX-FileCopyrightText: © 2022 Christian BUHTZ <c.buhtz@posteo.jp>
+#
+# SPDX-License-Identifier: GPL-2.0
+#
+# This file is part of the program "Back In time" which is released under GNU
+# General Public License v2 (GPLv2).
+# See file LICENSE or go to <https://www.gnu.org/licenses/#GPL>.
 """Provides the ability to collect diagnostic information on Back In Time.
 
 These are version numbers of the dependent tools, environment variables,
 paths, operating system and the like. This is used to enhance error reports
 and to enrich them with the necessary information as uncomplicated as possible.
 """
-
 import sys
 import os
 import itertools
@@ -15,8 +21,27 @@ import locale
 import subprocess
 import json
 import re
-import config  # config.Config.VERSION  Refactor after src-layout migration
+import config
 import tools
+import version
+
+
+def collect_minimal_diagnostics():
+    """Collect minimal information about backintime and the operating system.
+
+    Returns:
+       dict: A nested dictionary.
+    """
+    return {
+        'backintime': {
+            'name': config.Config.APP_NAME,
+            'version': version.__version__,
+            'running-as-root': pwd.getpwuid(os.getuid()) == 'root'
+        },
+        'host-setup': {
+            'OS': _get_os_release()
+        }
+    }
 
 
 def collect_diagnostics():
@@ -28,9 +53,7 @@ def collect_diagnostics():
     Returns:
        dict: A nested dictionary.
     """
-    result = {}
-
-    pwd_struct = pwd.getpwuid(os.getuid())
+    result = collect_minimal_diagnostics()
 
     # === BACK IN TIME ===
 
@@ -38,9 +61,7 @@ def collect_diagnostics():
     # (should be singleton)
     cfg = config.Config()
 
-    result['backintime'] = {
-        'name': config.Config.APP_NAME,
-        'version': config.Config.VERSION,
+    result['backintime'].update({
         'latest-config-version': config.Config.CONFIG_VERSION,
         'local-config-file': cfg._LOCAL_CONFIG_PATH,
         'local-config-file-found': Path(cfg._LOCAL_CONFIG_PATH).exists(),
@@ -48,14 +69,13 @@ def collect_diagnostics():
         'global-config-file-found': Path(cfg._GLOBAL_CONFIG_PATH).exists(),
         # 'distribution-package': str(distro_path),
         'started-from': str(Path(config.__file__).parent),
-        'running-as-root': pwd_struct.pw_name == 'root',
         'user-callback': cfg.takeSnapshotUserCallback(),
         'keyring-supported': tools.keyringSupported()
-    }
+    })
 
     # Git repo
     bit_root_path = Path(tools.backintimePath(""))
-    git_info = get_git_repository_info(bit_root_path)
+    git_info = tools.get_git_repository_info(bit_root_path)
 
     if git_info:
 
@@ -65,15 +85,12 @@ def collect_diagnostics():
             result['backintime'][f'git-{key}'] = git_info[key]
 
     # == HOST setup ===
-    result['host-setup'] = {
+    result['host-setup'].update({
         # Kernel & Architecture
         'platform': platform.platform(),
         # OS Version (and maybe name)
-        'system': '{} {}'.format(platform.system(), platform.version()),
-        # OS Release name (prettier)
-        'OS': _get_os_release()
-
-    }
+        'system': f'{platform.system()} {platform.version()}'
+    })
 
     # Display system (X11 or Wayland)
     # This doesn't catch all edge cases.
@@ -100,20 +117,21 @@ def collect_diagnostics():
         result['host-setup'][var] = os.environ.get(var, '(not set)')
 
     # === PYTHON setup ===
-    python = '{} {} {} {}'.format(
+    python = ' '.join((
         platform.python_version(),
         ' '.join(platform.python_build()),
         platform.python_implementation(),
         platform.python_compiler()
-    )
+    ))
 
     # Python branch and revision if available
     branch = platform.python_branch()
     if branch:
-        python = '{} branch: {}'.format(python, branch)
+        python = f'{python} branch: {branch}'
+
     rev = platform.python_revision()
     if rev:
-        python = '{} rev: {}'.format(python, rev)
+        python = f'{python} rev: {rev}'
 
     python_executable = Path(sys.executable)
 
@@ -189,8 +207,10 @@ def collect_diagnostics():
         result['external-programs']['shell-version'] \
             = shell_version.split('\n')[0]
 
-    result = _replace_username_paths(result=result,
-                                     username=pwd_struct.pw_name)
+    result = _replace_username_paths(
+        result=result,
+        username=pwd.getpwuid(os.getuid()).pw_name
+    )
 
     return result
 
@@ -198,31 +218,33 @@ def collect_diagnostics():
 def _get_qt_information():
     """Collect Version and Theme information from Qt.
 
-    If environment variable DISPLAY is set a temporary QApplication instances
-    is created.
+    If environment variable ``DISPLAY`` is set a temporary QApplication
+    instances is created.
     """
+    # pylint: disable=import-outside-toplevel
     try:
-        import PyQt5.QtCore
-        import PyQt5.QtGui
-        import PyQt5.QtWidgets
+        import PyQt6.QtCore
+        import PyQt6.QtGui
+        import PyQt6.QtWidgets
     except ImportError:
-        return '(Cannot import PyQt5)'
+        return '(Cannot import PyQt6)'
 
     # Themes
     theme_info = {}
-    if tools.checkXServer():  # TODO use tools.is_Qt5_working() when stable
-        qapp = PyQt5.QtWidgets.QApplication([])
+
+    if tools.checkXServer():  # TODO use tools.is_Qt_working() when stable
+        qapp = PyQt6.QtWidgets.QApplication([])
         theme_info = {
-            'Theme': PyQt5.QtGui.QIcon.themeName(),
-            'Theme Search Paths': PyQt5.QtGui.QIcon.themeSearchPaths(),
-            'Fallback Theme': PyQt5.QtGui.QIcon.fallbackThemeName(),
-            'Fallback Search Paths': PyQt5.QtGui.QIcon.fallbackSearchPaths()
+            'Theme': PyQt6.QtGui.QIcon.themeName(),
+            'Theme Search Paths': PyQt6.QtGui.QIcon.themeSearchPaths(),
+            'Fallback Theme': PyQt6.QtGui.QIcon.fallbackThemeName(),
+            'Fallback Search Paths': PyQt6.QtGui.QIcon.fallbackSearchPaths()
         }
         qapp.quit()
 
     return {
-        'Version': 'PyQt {} / Qt {}'.format(PyQt5.QtCore.PYQT_VERSION_STR,
-                                            PyQt5.QtCore.QT_VERSION_STR),
+        'Version': f'PyQt {PyQt6.QtCore.PYQT_VERSION_STR} '
+                   f'/ Qt {PyQt6.QtCore.QT_VERSION_STR}',
         **theme_info
     }
 
@@ -295,57 +317,12 @@ def _get_extern_versions(cmd,
     return result.strip()  # as string
 
 
-def get_git_repository_info(path=None):
-    """Return the current branch and last commit hash.
-
-    Credits: https://stackoverflow.com/a/51224861/4865723
-
-    Args:
-        path (Path): Path with '.git' folder in (default is
-                     current working directory).
-
-    Returns:
-        (dict): Dict with keys "branch" and "hash" if it is a git repo,
-                otherwise an `None`.
-    """
-
-    if not path:
-        path = Path.cwd()
-
-    git_folder = path / '.git'
-
-    if not git_folder.exists():
-        return None
-
-    result = {}
-
-    # branch name
-    with (git_folder / 'HEAD').open('r') as handle:
-        val = handle.read()
-
-    if val.startswith('ref: '):
-        result['branch'] = '/'.join(val.split('/')[2:]).strip()
-
-    else:
-        result['branch'] = '(detached HEAD)'
-        result['hash'] = val
-
-        return result
-
-    # commit hash
-    with (git_folder / 'refs' / 'heads' / result['branch']) \
-         .open('r') as handle:
-        result['hash'] = handle.read().strip()
-
-    return result
-
-
 def _get_os_release():
     """Try to get the name and version of the operating system used.
 
     First it extract infos from the file ``/etc/os-release``. Because not all
     GNU Linux distributions follow the standards it will also look for
-    alternative release files (pattern: /etc/*release).
+    alternative release files (pattern: ``/etc/*release``).
     See http://linuxmafia.com/faq/Admin/release-files.html for examples.
 
     Returns:

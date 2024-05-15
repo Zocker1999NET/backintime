@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
+"""This helper script does manage transferring translations to and from the
+translation platform (currently Weblate).
+"""
 import sys
 import io
 import datetime
 import json
+import re
+import tempfile
+import shutil
 import pprint
 from pathlib import Path
 from subprocess import run, check_output
@@ -12,11 +18,8 @@ try:
     import polib
     print(f'polib version: {polib.__version__}')
 except ImportError:
+    # pylint: disable-next=raise-missing-from
     raise ImportError('Can not import package "polib". Please install it.')
-
-"""This helper script do manage transferring translations to and from the
-translation platform (currently Weblate).
-"""
 
 # In usual GNU gettext environments it would be "locale" (sometimes plurarl
 # "locales")
@@ -25,8 +28,10 @@ TEMPLATE_PO = LOCAL_DIR / 'messages.pot'
 LANGUAGE_NAMES_PY = Path('common') / 'languages.py'
 WEBLATE_URL = 'https://translate.codeberg.org/git/backintime/common'
 PACKAGE_NAME = 'Back In Time'
-PACKAGE_VERSION = Path('VERSION').read_text().strip()
+PACKAGE_VERSION = Path('VERSION').read_text('utf-8').strip()
 BUG_ADDRESS = 'https://github.com/bit-team/backintime'
+# RegEx pattern: Character & followed by a word character (extract as group)
+REX_SHORTCUT_LETTER = re.compile(r'&(\w)')
 
 
 def update_po_template():
@@ -101,7 +106,15 @@ def update_po_language_files():
             f'{po_path}',
             f'{TEMPLATE_PO}'
         ]
+        run(cmd, check=True)
 
+        # remove obsolete entries ("#~ msgid)
+        cmd = [
+            'msgattrib',
+            '--no-obsolete',
+            f'--output-file={po_path}',
+            f'{po_path}'
+        ]
         run(cmd, check=True)
 
 
@@ -119,9 +132,9 @@ def check_existence():
         TEMPLATE_PO
     ]
 
-    for fp in paths_to_check:
-        if not fp.exists():
-            raise FileNotFoundError(fp)
+    for file_path in paths_to_check:
+        if not file_path.exists():
+            raise FileNotFoundError(file_path)
 
 
 def update_from_weblate():
@@ -135,9 +148,6 @@ def update_from_weblate():
     See comments in code about further details.
     """
 
-    import shutil
-    import tempfile
-
     tmp_dir = tempfile.mkdtemp()
 
     # "Clone" weblate repo into a temporary folder.
@@ -150,7 +160,7 @@ def update_from_weblate():
         WEBLATE_URL,
         tmp_dir
     ]
-    print('Execute "{}".'.format(' '.join(cmd)))
+    print(f'Execute "{cmd}".')
     run(cmd, check=True)
 
     # Now checkout po-files from that temporary repository but redirect
@@ -166,7 +176,7 @@ def update_from_weblate():
         '--',
         'common/po/*.po'
     ]
-    print('Execute "{}".'.format(' '.join(cmd)))
+    print(f'Execute "{cmd}".')
     run(cmd, check=True)
 
     shutil.rmtree(tmp_dir, ignore_errors=True)
@@ -215,17 +225,18 @@ def create_languages_file():
     names = stream.read()
 
     # the same with completeness dict
-    completeness = create_completeness_dict()
+    compl_dict = create_completeness_dict()
     stream = io.StringIO()
-    pprint.pprint(completeness, indent=2, stream=stream, sort_dicts=True)
+    pprint.pprint(compl_dict, indent=2, stream=stream, sort_dicts=True)
     stream.seek(0)
     completeness = stream.read()
 
     with LANGUAGE_NAMES_PY.open('w', encoding='utf8') as handle:
 
-        handle.write('# Generated at {} with help of package "babel" '
-                     'and "polib".\n'.format(
-                         datetime.datetime.now().strftime('%c') ))
+        date_now = datetime.datetime.now().strftime('%c')
+        handle.write(
+            f'# Generated at {date_now} with help of package "babel" '
+            'and "polib".\n')
         handle.write('# https://babel.pocoo.org\n')
         handle.write('# https://github.com/python-babel/babel\n')
 
@@ -239,6 +250,26 @@ def create_languages_file():
 
     print(f'Result written to {LANGUAGE_NAMES_PY}.')
 
+    # Completeness statistics (English is excluded)
+    compl = list(compl_dict.values())
+    compl.remove(100)  # exclude English
+    statistic = {
+        'compl': round(sum(compl) / len(compl)),
+        'n': len(compl),
+        '99_100': len(list(filter(lambda val: val >= 99, compl))),
+        '90_98': len(list(filter(lambda val: 90 <= val < 99, compl))),
+        '50_89': len(list(filter(lambda val: 50 <= val <= 89, compl))),
+        'lt50': len(list(filter(lambda val: val < 50, compl)))
+    }
+
+    print('STATISTICS')
+    print(f'\tTotal completeness: {statistic["compl"]}%')
+    print(f'\tNumber of languages (excl. English): {statistic["n"]}')
+    print(f'\t100-99% complete: {statistic["99_100"]} languages')
+    print(f'\t90-98% complete: {statistic["90_98"]} languages')
+    print(f'\t50-89% complete: {statistic["50_89"]} languages')
+    print(f'\tless than 50% complete: {statistic["lt50"]} languages')
+
 
 def create_language_names_dict(language_codes: list) -> dict:
     """Create dict of language names in different flavors.
@@ -250,12 +281,14 @@ def create_language_names_dict(language_codes: list) -> dict:
     # We keep this import local because it is a rare case that this function
     # will be called. This happens only if a new language is added to BIT.
     try:
+        # pylint: disable-next=import-outside-toplevel
         import babel
-    except ImportError:
-        raise ImportError('Can not import package "babel". Please install it.')
+    except ImportError as exc:
+        raise ImportError(
+            'Can not import package "babel". Please install it.') from exc
 
     # Source language (English) should be included
-    if not 'en' in language_codes:
+    if 'en' not in language_codes:
         language_codes.append('en')
 
     # Don't use defaultdict because pprint can't handle it
@@ -273,13 +306,15 @@ def create_language_names_dict(language_codes: list) -> dict:
 
         # Name of the language in all other foreign languages
         # e.g. Japanese, Japanisch, ...
-        for c in language_codes:
-            result[code][c] = lang.get_display_name(c)
+        for foreign in language_codes:
+            result[code][foreign] = lang.get_display_name(foreign)
 
     return result
 
 
 def update_language_names() -> dict:
+    """See `create_language_names_dict() for details."""
+
     # Languages code based on the existing po-files
     langs = [po_path.stem for po_path in LOCAL_DIR.rglob('**/*.po')]
 
@@ -299,18 +334,152 @@ def update_language_names() -> dict:
     return languages.names
 
 
+def get_shortcut_entries(po_file: polib.POFile) -> list[polib.POEntry]:
+    """Return list of po-file entries using a shortcut indicator ("&")
+    and are not obsolete.
+    """
+    result = filter(lambda entry: entry.obsolete == 0 and
+                    REX_SHORTCUT_LETTER.search(entry.msgid), po_file)
+
+    return list(result)
+
+
+def get_shortcut_groups() -> dict[str, list]:
+    """Return the currently used "shortcut groups" and validate if they are
+    up to date with the source strings in "messages.pot".
+
+    Returns:
+        A dictionarie indexed by group names with list of source strings.
+
+    Raises:
+        ValueError: If the shortcut indicator using source strings are
+            modified.
+    """
+
+    # Get all entries using a shortcut indicator
+    real = get_shortcut_entries(polib.pofile(TEMPLATE_PO))
+    # Reduce to their source strings
+    real = [entry.msgid for entry in real]
+
+    # Later this list is sliced into multiple groups
+    expect = [
+        # Main window (menu bar)
+        '&Backup',
+        '&Restore',
+        '&Help',
+        # Manage profiles dialog (tabs)
+        '&General',
+        '&Include',
+        '&Exclude',
+        '&Auto-remove',
+        '&Options',
+        'E&xpert Options',
+    ]
+
+    # Plausibility check:
+    # Difference between the real and expected strings indicate
+    # modifications in the GUI and in the shortcut groups.
+    if not sorted(real) == sorted(expect):
+        # This will happen when the source strings are somehow modified or
+        # some strings add or removed.
+        # SOLUTION: Look again into the GUI and its commit history what was
+        # modified. Update the "expect" list to it.
+        raise ValueError(
+            f'Source strings with GUI shortcuts in {TEMPLATE_PO} are not as '
+            'expected.\n'
+            f'  Expected: {sorted(expect)}\n'
+            f'      Real: {sorted(real)}')
+
+    # WORKAROUND
+    # This source string is not a translateble string but has a shortcut
+    # letter.
+    # Dev note: From point of view of the translators it might make sense
+    # making that string translatable also. But then we risk that our projects
+    # name is translated for real.
+    expect = ['Back In &Time'] + expect
+
+    return {'mainwindow': expect[:4], 'manageprofile': expect[4:]}
+
+
+def check_shortcuts():
+    """Check for redundant used letters as shortcut indicators in translated
+    GUI strings.
+
+    Keyboard shortcuts are indicated via the & in front of a character
+    in a GUI string (e.g. a button or tab). For example "B&ackup" can be
+    activated with pressing ALT+A. As another example the strings '&Exclude'
+    and '&Export' used in the same area of the GUI won't work because both of
+    them indicate the 'E' as a shortcut. They need to be unique.
+
+    These situation can happen in translated strings in most cases translators
+    are not aware of that feature or problem. It is nearly impossible to
+    control this on the level of the translation platform.
+    """
+
+    groups = get_shortcut_groups()
+
+    # each po file in the repository
+    for po_path in list(LOCAL_DIR.rglob('**/*.po')):
+
+        print(f'******* {po_path} *******')
+
+        # Remember shortcut relevant entries.
+        real = {key: [] for key in groups}
+
+        # WORKAROUND. See get_shortcut_groups() for details.
+        real['mainwindow'].append('Back In &Time')
+
+        # Entries using shortcut indicators
+        shortcut_entries = get_shortcut_entries(polib.pofile(po_path))
+
+        # Group the entries to their shortcut groups
+        for entry in shortcut_entries:
+            for groupname in real:
+                if entry.msgid in groups[groupname]:
+                    real[groupname].append(entry.msgstr)
+
+        # Each shortcut group...
+        for groupname in real:
+
+            # All shortcut letters used in that group
+            letters = ''
+
+            # Collect letters
+            for trans in real[groupname]:
+                try:
+                    letters = letters \
+                        + REX_SHORTCUT_LETTER.search(trans).groups()[0]
+                except AttributeError:
+                    pass
+
+            # Redundant shortcuts? set() do remove duplicates
+            if len(letters) > len(set(letters)):
+                err_msg = f'Maybe redundant shortcuts in "{po_path}".'
+
+                # Missing shortcuts in translated strings?
+                if len(letters) < len(real[groupname]):
+                    err_msg = err_msg + ' Maybe missing ones.'
+
+                err_msg = f'{err_msg} Please take a look.\n' \
+                    f'        Group: {groupname}\n' \
+                    f'       Source: {groups[groupname]}\n' \
+                    f'  Translation: {real[groupname]}'
+
+                print(err_msg)
+
+
 if __name__ == '__main__':
 
     check_existence()
 
-    fin_msg = 'Please check the result via "git diff" before committing.'
+    FIN_MSG = 'Please check the result via "git diff" before committing.'
 
     # Scan python source files for translatable strings
     if 'source' in sys.argv:
         update_po_template()
         update_po_language_files()
         create_languages_file()
-        print(fin_msg)
+        print(FIN_MSG)
         sys.exit()
 
     # Download translations (as po-files) from Weblate and integrate them
@@ -318,13 +487,20 @@ if __name__ == '__main__':
     if 'weblate' in sys.argv:
         update_from_weblate()
         create_languages_file()
-        print(fin_msg)
+        print(FIN_MSG)
+        sys.exit()
+
+    # Check for redundant &-shortcuts
+    if 'shortcuts' in sys.argv:
+        check_shortcuts()
         sys.exit()
 
     print('Use one of the following argument keywords:\n'
           '  source  - Update the pot and po files with translatable '
           'strings extracted from py files. (Prepare upload to Weblate)\n'
           '  weblate - Update the po files with translations from '
-          'external translation service Weblate. (Download from Weblate)')
+          'external translation service Weblate. (Download from Weblate)\n'
+          '  shortcut - Check po files for redundant keyboard shortcuts '
+          'using "&"')
 
     sys.exit(1)

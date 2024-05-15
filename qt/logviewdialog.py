@@ -1,40 +1,53 @@
-#    Back In Time
-#    Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey, Germar Reitze
+# Back In Time
+# Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey,
+# Germar Reitze
 #
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import (QDialog,
+                             QLabel,
+                             QPlainTextEdit,
+                             QVBoxLayout,
+                             QHBoxLayout,
+                             QComboBox,
+                             QDialogButtonBox,
+                             QCheckBox,
+                             )
+from PyQt6.QtCore import QFileSystemWatcher
 import qttools
 import snapshots
 import encfstools
 import snapshotlog
 import tools
-import messagebox
 
 
 class LogViewDialog(QDialog):
-    def __init__(self, parent, sid = None, systray = False):
+    def __init__(self, parent, sid=None, systray=False):
+        """
+        Instantiate a snapshot log file viewer
+
+        Args:
+            parent:
+            sid (:py:class:`SID`): snapshot ID whose log file shall be shown
+                                   (``None`` = show last log)
+            systray (bool): TODO Show log from systray icon or from App (boolean)
+        """
         if systray:
             super(LogViewDialog, self).__init__()
         else:
             super(LogViewDialog, self).__init__(parent)
-
 
         self.config = parent.config
         self.snapshots = parent.snapshots
@@ -60,7 +73,7 @@ class LogViewDialog(QDialog):
         self.mainLayout.addLayout(layout)
 
         # profiles
-        self.lblProfile = QLabel(_('Profile') + ':', self)
+        self.lblProfile = QLabel(_('Profile:'), self)
         layout.addWidget(self.lblProfile)
 
         self.comboProfiles = qttools.ProfileCombo(self)
@@ -68,7 +81,7 @@ class LogViewDialog(QDialog):
         self.comboProfiles.currentIndexChanged.connect(self.profileChanged)
 
         # snapshots
-        self.lblSnapshots = QLabel(_('Snapshots') + ':', self)
+        self.lblSnapshots = QLabel(_('Snapshots:'), self)
         layout.addWidget(self.lblSnapshots)
         self.comboSnapshots = qttools.SnapshotCombo(self)
         layout.addWidget(self.comboSnapshots, 1)
@@ -77,46 +90,48 @@ class LogViewDialog(QDialog):
         if self.sid is None:
             self.lblSnapshots.hide()
             self.comboSnapshots.hide()
+
         if self.sid or systray:
             self.lblProfile.hide()
             self.comboProfiles.hide()
 
         # filter
-        layout.addWidget(QLabel(_('Filter') + ':'))
+        layout.addWidget(QLabel(_('Filter:'), self))
 
         self.comboFilter = QComboBox(self)
         layout.addWidget(self.comboFilter, 1)
         self.comboFilter.currentIndexChanged.connect(self.comboFilterChanged)
 
-        self.comboFilter.addItem(_('All'), 0)
+        self.comboFilter.addItem(_('All'), snapshotlog.LogFilter.NO_FILTER)
 
         # Note about ngettext plural forms: n=102 means "Other" in Arabic and
         # "Few" in Polish.
         # Research in translation community indicate this as the best fit to
         # the meaning of "all".
-        self.comboFilter.addItem(' + '.join((_('Errors'), _('Changes'))), 4)
+        self.comboFilter.addItem(' + '.join((_('Errors'), _('Changes'))), snapshotlog.LogFilter.ERROR_AND_CHANGES)
         self.comboFilter.setCurrentIndex(self.comboFilter.count() - 1)
-        self.comboFilter.addItem(_('Errors'), 1)
-        self.comboFilter.addItem(_('Changes'), 2)
-        self.comboFilter.addItem(_('Information'), 3)
+        self.comboFilter.addItem(_('Errors'), snapshotlog.LogFilter.ERROR)
+        self.comboFilter.addItem(_('Changes'), snapshotlog.LogFilter.CHANGES)
+        self.comboFilter.addItem(_('Information'), snapshotlog.LogFilter.INFORMATION)
+        self.comboFilter.addItem(_('rsync transfer failures (experimental)'), snapshotlog.LogFilter.RSYNC_TRANSFER_FAILURES)
 
         # text view
         self.txtLogView = QPlainTextEdit(self)
         self.txtLogView.setFont(QFont('Monospace'))
         self.txtLogView.setReadOnly(True)
-        self.txtLogView.setLineWrapMode(QPlainTextEdit.NoWrap)
+        self.txtLogView.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.mainLayout.addWidget(self.txtLogView)
 
         #
         self.mainLayout.addWidget(QLabel(_('[E] Error, [I] Information, [C] Change')))
 
-        #decode path
+        # decode path
         self.cbDecode = QCheckBox(_('decode paths'), self)
         self.cbDecode.stateChanged.connect(self.cbDecodeChanged)
         self.mainLayout.addWidget(self.cbDecode)
 
-        #buttons
-        buttonBox = QDialogButtonBox(QDialogButtonBox.Close)
+        # buttons
+        buttonBox = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         self.mainLayout.addWidget(buttonBox)
         buttonBox.rejected.connect(self.close)
 
@@ -128,21 +143,22 @@ class LogViewDialog(QDialog):
         self.watcher = QFileSystemWatcher(self)
         if self.sid is None:
             # only watch if we show the last log
-            log = self.config.takeSnapshotLogFile(self.comboProfiles.currentProfileID())
+            log = self.config.takeSnapshotLogFile(
+                self.comboProfiles.currentProfileID())
             self.watcher.addPath(log)
+        # passes the path to the changed file to updateLog()
         self.watcher.fileChanged.connect(self.updateLog)
-
-        self.txtLogView.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.txtLogView.customContextMenuRequested.connect(self.contextMenuClicked)
 
     def cbDecodeChanged(self):
         if self.cbDecode.isChecked():
             if not self.decode:
                 self.decode = encfstools.Decode(self.config)
+
         else:
-            if not self.decode is None:
+            if self.decode is not None:
                 self.decode.close()
             self.decode = None
+
         self.updateLog()
 
     def profileChanged(self, index):
@@ -163,59 +179,6 @@ class LogViewDialog(QDialog):
 
     def comboFilterChanged(self, index):
         self.updateLog()
-
-    def contextMenuClicked(self, point):
-        menu = QMenu()
-        clipboard = qttools.createQApplication().clipboard()
-        cursor = self.txtLogView.textCursor()
-
-        btnCopy = menu.addAction(_('Copy'))
-        btnCopy.triggered.connect(lambda: clipboard.setText(cursor.selectedText()))
-        btnCopy.setEnabled(cursor.hasSelection())
-
-        btnAddExclude = menu.addAction(_('Add to Exclude'))
-        btnAddExclude.triggered.connect(self.btnAddExcludeClicked)
-        btnAddExclude.setEnabled(cursor.hasSelection())
-
-        btnDecode = menu.addAction(_('Decode'))
-        btnDecode.triggered.connect(self.btnDecodeClicked)
-        btnDecode.setEnabled(cursor.hasSelection())
-        btnDecode.setVisible(self.config.snapshotsMode() == 'ssh_encfs')
-
-        menu.exec_(self.txtLogView.mapToGlobal(point))
-
-    def btnAddExcludeClicked(self):
-        exclude = self.config.exclude()
-        path = self.txtLogView.textCursor().selectedText().strip()
-        if not path or path in exclude:
-            return
-        edit = QLineEdit(self)
-        edit.setText(path)
-        edit.setMinimumWidth(600)
-        options = {
-            'widget': edit,
-            'retFunc': edit.text,
-            'id': 'path'
-        }
-        confirm, opt = messagebox.warningYesNoOptions(
-            self,
-            _('Do you want to exclude this?'),
-            (options, )
-        )
-
-        if not confirm:
-            return
-
-        exclude.append(opt['path'])
-        self.config.setExclude(exclude)
-
-    def btnDecodeClicked(self):
-        if not self.decode:
-            self.decode = encfstools.Decode(self.config)
-        cursor = self.txtLogView.textCursor()
-        selection = cursor.selectedText().strip()
-        plain = self.decode.path(selection)
-        cursor.insertText(plain)
 
     def updateProfiles(self):
         current_profile_id = self.config.currentProfile()
@@ -251,12 +214,25 @@ class LogViewDialog(QDialog):
             if self.cbDecode.isChecked():
                 self.cbDecode.setChecked(False)
 
-    def updateLog(self, watchPath = None):
+    def updateLog(self, watchPath=None):
+        """
+        Show the log file of the current snapshot in the GUI
+
+        Args:
+            watchPath: FQN to a log file (as string) whose changes are watched
+                       via ``QFileSystemWatcher``. In case of changes
+                       this function is called with the log file
+                       and only the new lines in the log file are appended
+                       to the log file widget in the GUI
+                       Use ``None`` if a complete log file shall be shown
+                       at once.
+        """
         if not self.enableUpdate:
             return
 
         mode = self.comboFilter.itemData(self.comboFilter.currentIndex())
 
+        # TODO This expressions is hard to understand (watchPath is not a boolean!)
         if watchPath and self.sid is None:
             # remove path from watch to prevent multiple updates at the same time
             self.watcher.removePath(watchPath)

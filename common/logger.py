@@ -20,7 +20,6 @@ import os
 import sys
 import atexit
 
-import tools
 import bcolors
 
 DEBUG = False            # Set to "True" when passing "--debug" as cmd arg
@@ -58,9 +57,8 @@ def closelog():
 
 
 def _do_syslog(message: str, level: int) -> str:
-    for line in tools.wrapLine(message):
-        syslog.syslog(level, '{}{}: {}'.format(
-            SYSLOG_MESSAGE_PREFIX, _level_names[level], line))
+    syslog.syslog(level, '{}{}: {}'.format(
+        SYSLOG_MESSAGE_PREFIX, _level_names[level], message))
 
 
 def error(msg, parent=None, traceDepth=0):
