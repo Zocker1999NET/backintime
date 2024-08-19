@@ -6,84 +6,96 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: backintime\n"
-"Report-Msgid-Bugs-To: https://github.com/bit-team/backintime\n"
-"POT-Creation-Date: 2024-01-30 10:08+0100\n"
-"PO-Revision-Date: 2024-01-18 04:06+0000\n"
-"Last-Translator: Lucky-2411 <laki71@gmail.com>\n"
+"Report-Msgid-Bugs-To: c.buhtz@posteo.jp\n"
+"POT-Creation-Date: 2024-07-22 21:49+0200\n"
+"PO-Revision-Date: 2024-07-27 16:54+0000\n"
+"Last-Translator: nvedran <nvedran@users.noreply.translate.codeberg.org>\n"
 "Language-Team: Serbian <https://translate.codeberg.org/projects/backintime/common/sr/>\n"
 "Language: sr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
-"X-Generator: Weblate 5.3.1\n"
+"X-Generator: Weblate 5.6.2\n"
 "X-Launchpad-Export-Date: 2022-11-06 19:32+0000\n"
 
-#: common/config.py:50 qt/settingsdialog.py:151 qt/settingsdialog.py:526
+#: common/config.py:44 qt/encfsmsgbox.py:24 qt/settingsdialog.py:1262
 msgid "Warning"
 msgstr "Upozorenje"
 
-#: common/config.py:146 common/config.py:289
+#: common/config.py:148 common/config.py:290
 msgid "Main profile"
 msgstr "Glavni profil"
 
-#: common/config.py:299 common/config.py:304
+#: common/config.py:297
+msgid "Local (EncFS encrypted)"
+msgstr "Lokalno (EncFS šifrovano)"
+
+#: common/config.py:298
+msgid "SSH (EncFS encrypted)"
+msgstr "SSH (EncFS šifrovano)"
+
+#: common/config.py:309
 msgid "Local"
 msgstr "Lokalno"
 
-#: common/config.py:301 common/config.py:311 qt/settingsdialog.py:1946
+#: common/config.py:311
+msgid "SSH"
+msgstr "SSH"
+
+#: common/config.py:311 common/config.py:321 qt/settingsdialog.py:2185
 msgid "SSH private key"
-msgstr "SSH privatan ključ"
+msgstr "SSH privatni ključ"
 
-#: common/config.py:304
-msgid "encrypted"
-msgstr "enkriptovano"
+#: common/config.py:314
+msgid "Local encrypted"
+msgstr "Lokalno šifrovano"
 
-#: common/config.py:305 common/config.py:312
+#: common/config.py:315 common/config.py:322
 msgid "Encryption"
 msgstr "Enkripcija"
 
-#: common/config.py:310
+#: common/config.py:320
 msgid "SSH encrypted"
 msgstr "SSH enkriptovano"
 
-#: common/config.py:317
+#: common/config.py:327
 msgid "Default"
 msgstr "Podrazumevano"
 
-#: common/config.py:348 common/config.py:360 common/config.py:377
-#: common/config.py:388
+#: common/config.py:358 common/config.py:370 common/config.py:387
+#: common/config.py:398
 #, python-brace-format
 msgid "Profile: \"{name}\""
 msgstr "Profil: \"{name}\""
 
-#: common/config.py:349
+#: common/config.py:359
 msgid "Snapshots folder is not valid!"
 msgstr "Direktorijum za snimak nije važeći!"
 
-#: common/config.py:361
+#: common/config.py:371
 msgid "You must select at least one folder to back up!"
 msgstr ""
 "Morate odabrati bar jedan direktorijum da bi napravili rezervnu kopiju!"
 
-#: common/config.py:378
+#: common/config.py:388
 msgid "Backup folder cannot be included."
-msgstr "Direktorijum za rezervne kopije ne moze biti uključen."
+msgstr "Direktorijum za rezervne kopije ne može biti uključen."
 
-#: common/config.py:390
+#: common/config.py:400
 msgid "Backup sub-folder cannot be included."
 msgstr "Pod-direktorijum za rezervne kopije ne moze biti uključen."
 
-#: common/config.py:448
+#: common/config.py:447
 #, python-brace-format
 msgid "Invalid option. {path} is not a folder."
 msgstr "Nevažeća postavka. {path} nije direktorijum."
 
-#: common/config.py:457
+#: common/config.py:456
 msgid "Host/User/Profile-ID must not be empty."
 msgstr "Host/Korisnik/ID-Profila moraju biti popunjeni."
 
-#: common/config.py:467 common/config.py:514
+#: common/config.py:466 common/config.py:513
 #, python-brace-format
 msgid ""
 "Can't write to: {path}\n"
@@ -92,7 +104,7 @@ msgstr ""
 "Ne mogu da upisujem u: {path}\n"
 "Da li ste sigurni da imate dozvolu za upisivanje?"
 
-#: common/config.py:484
+#: common/config.py:483
 #, python-brace-format
 msgid ""
 "Destination filesystem for {path} is formatted with FAT which doesn't "
@@ -102,7 +114,7 @@ msgstr ""
 "čvrste veze. Molim Vas da koristite sistemske datoteke koje Linuks izvorno "
 "podržava."
 
-#: common/config.py:493
+#: common/config.py:492
 #, python-brace-format
 msgid ""
 "Destination filesystem for {path} is an SMB-mounted share. Please make sure "
@@ -113,56 +125,58 @@ msgstr ""
 " Vas da potvrdite da udaljeni SMB server podržava symlinks ili uključite "
 "{copyLinks} u {expertOptions}."
 
-#: common/config.py:497 qt/settingsdialog.py:1004
+#: common/config.py:496 qt/settingsdialog.py:1127
 msgid "Copy links (dereference symbolic links)"
 msgstr "Kopiraj linkove (prati simbolične linkove)"
 
-#: common/config.py:498
+#: common/config.py:497
 msgid "Expert Options"
 msgstr "Napredne Postavke"
 
-#: common/config.py:502
+#: common/config.py:501
 #, python-brace-format
 msgid ""
-"Destination filesystem for {path} is an sshfs-mounted share. sshfs doesn't "
+"Destination filesystem for {path} is an sshfs-mounted share. Sshfs doesn't "
 "support hard-links. Please use mode 'SSH' instead."
 msgstr ""
-"Odredište sistema datoteka za {path} je sshfs-montirano deljeno mesto. sshfs"
+"Odredište sistema datoteka za {path} je sshfs-montirano deljeno mesto. Sshfs"
 " ne podržava čvrste veze. Molimo vas da koristite 'SSH' umesto toga."
 
-#: common/config.py:1598
-#, fuzzy
-msgid ""
-"Can't find crontab.\n"
-"Are you sure cron is installed?\n"
-"If not you should disable all automatic backups."
-msgstr ""
-"Ne mogu da pronađem crontab.\n"
-"Da li si siguran da je crontab inastaliran?\n"
-"Ako nije, treba da onemogućiš automatsko kreiranje rezervnih kopija."
-
-#: common/config.py:1604
+#: common/config.py:1658
 msgid "Failed to write new crontab."
 msgstr "Неуспешно чување новог crontab-а."
 
-#: common/config.py:1707
+#: common/config.py:1666
+msgid ""
+"Cron is not running despite the crontab command being available. Scheduled "
+"backup jobs will not run. Cron might be installed but not enabled. Try the "
+"command \"systemctl enable cron\" or consult the support channels of your "
+"GNU Linux distribution."
+msgstr ""
+"Pozadinski proces (cron) se ne pokreće, uprkos tome što je komanda dostupna "
+"(crontab command). Snimanje rezervnih kopija koje su zakazane se neće "
+"pokrenuti. Pozadinski proces (cron) je možda instaliran ali nije omogućen. "
+"Isprobajte komandu \"systemctl enable cron\" ili kontaktirajte podršku za "
+"GNU Linux distribuciju."
+
+#: common/config.py:1746
 #, python-brace-format
 msgid ""
 "Could not install Udev rule for profile {profile_id}. DBus Service "
 "'{dbus_interface}' wasn't available"
 msgstr ""
-"Neuspešno instaliranje Udev pravila za profil {profile_id}. DBus Service "
+"Neuspešno instaliranje Udev pravila za profil {profile_id}. DBus servis "
 "'{dbus_interface}' nije dostupan"
 
-#: common/config.py:1722
+#: common/config.py:1761
 #, python-brace-format
 msgid "Schedule udev doesn't work with mode {mode}"
-msgstr ""
+msgstr "Raspored udev ne radi sa režimom {mode}"
 
-#: common/config.py:1733
+#: common/config.py:1772
 #, python-brace-format
 msgid "Couldn't find UUID for {path}"
-msgstr ""
+msgstr "Nije moguće naći UUID za {path}"
 
 #: common/configfile.py:107
 msgid "Failed to save config"
@@ -172,14 +186,14 @@ msgstr "Неуспешно чување конфигурације"
 msgid "Failed to load config"
 msgstr "Неуспешно учитавање конфигурације"
 
-#: common/configfile.py:691 common/configfile.py:790
-#, fuzzy, python-brace-format
+#: common/configfile.py:690 common/configfile.py:789
+#, python-brace-format
 msgid "Profile \"{name}\" already exists."
 msgstr "Профил \"{name}\" већ постоји."
 
-#: common/configfile.py:736
+#: common/configfile.py:735
 msgid "The last profile cannot be removed."
-msgstr ""
+msgstr "Poslednji profil se ne može ukloniti."
 
 #: common/encfstools.py:92
 #, python-brace-format
@@ -196,71 +210,66 @@ msgstr "Направите нови енкриптовани фолдер?"
 
 #: common/encfstools.py:151
 msgid "Cancel"
-msgstr ""
+msgstr "Otkazati"
 
 #: common/encfstools.py:156
-msgid "Please confirm password"
-msgstr "Молимо потврдите лозинку"
+msgid "Please confirm the password."
+msgstr "Молимо потврдите лозинку."
 
 #: common/encfstools.py:160
 msgid "Password doesn't match."
-msgstr ""
+msgstr "Lozinka se ne poklapa."
 
-#: common/encfstools.py:178
-msgid ""
-"encfs version 1.7.2 and before has a bug with option --reverse. Please "
-"update encfs."
-msgstr ""
-
-#: common/encfstools.py:516 common/snapshots.py:914
+#: common/encfstools.py:521 common/snapshots.py:1034
 msgid "Take snapshot"
 msgstr "Направи снимак"
 
-#: common/mount.py:608
+#: common/mount.py:609
 #, python-brace-format
 msgid "Can't unmount {mountprocess} from {mountpoint}."
-msgstr ""
+msgstr "Nije moguće demontirati {mountprocess} iz {mountpoint}."
 
-#: common/mount.py:695
-msgid "{} not found. Please install e.g. {}"
-msgstr ""
-
-#: common/mount.py:716
-msgid "Mountpoint {} not empty."
-msgstr ""
-
-#: common/password.py:240
+#: common/mount.py:696
 #, python-brace-format
-msgid "Profile '{profile}': Enter password for {mode}: "
-msgstr "Профил '{profile}': Унесите лозинку за {mode}: "
+msgid "{command} not found. Please install it (e.g. via \"{installcommand}\")"
+msgstr "{command} nije pronađen. Instalirajte npr. {installcommand}"
 
-#: common/snapshots.py:342 common/snapshots.py:593
+#: common/mount.py:720
+#, python-brace-format
+msgid "Mountpoint {mntpoint} not empty."
+msgstr "Tačka montiranja {mntpoint} nije prazna."
+
+#: common/password.py:269
+#, python-brace-format
+msgid "Enter password for {mode} profile \"{profile}\":"
+msgstr "Unesi šifru za {mode} profil \"{profile}\":"
+
+#: common/snapshots.py:363 common/snapshots.py:614
 msgid "FAILED"
 msgstr "НЕУСПЕШНО"
 
-#: common/snapshots.py:539 common/snapshots.py:601
+#: common/snapshots.py:560 common/snapshots.py:622
 msgid "Restore permissions"
 msgstr "Поврати дозволе"
 
-#: common/snapshots.py:596 qt/app.py:287 qt/app.py:915 qt/app.py:950
-#: qt/qtsystrayicon.py:80
+#: common/snapshots.py:617 qt/app.py:291 qt/app.py:997 qt/app.py:1032
+#: qt/qtsystrayicon.py:81
 msgid "Done"
 msgstr "Готово"
 
-#: common/snapshots.py:708
+#: common/snapshots.py:737
 msgid "Deferring backup while on battery"
 msgstr "Одлагање backup-а док је уређај на батерији"
 
-#: common/snapshots.py:770
-#, fuzzy
+#: common/snapshots.py:835
 msgid ""
 "Can't find snapshots folder.\n"
 "If it is on a removable drive please plug it in."
 msgstr ""
-"Ne mogu da pronađem direktorijum za snimke.\n"
-"Ako je na izmenljivom medijumu, molim vas da ga priključite."
+"Nije moguće pronaći direktorijum za snimke.\n"
+"Ako je na prenosivom disku, molim vas da ga priključite."
 
-#: common/snapshots.py:772
+#: common/snapshots.py:839
 #, python-format
 msgid "Waiting %s second."
 msgid_plural "Waiting %s seconds."
@@ -268,565 +277,658 @@ msgstr[0] "Чекамо %s секунд."
 msgstr[1] "Чекамо %s секунде."
 msgstr[2] "Чекамо %s секунди."
 
-#: common/snapshots.py:809
-#, fuzzy, python-brace-format
+#: common/snapshots.py:907
+#, python-brace-format
 msgid "Failed to take snapshot {snapshot_id}."
-msgstr "Неуспешно чување снимка {snapshot_id}."
+msgstr "Neuspešno čuvanje snimka {snapshot_id}."
 
-#: common/snapshots.py:826
+#: common/snapshots.py:937
 msgid "Finalizing"
 msgstr "Завршавање"
 
-#: common/snapshots.py:949
+#: common/snapshots.py:1069
 msgid "Can't create folder"
 msgstr "Неуспешно креирање фолдера"
 
-#: common/snapshots.py:966
-#, fuzzy
+#: common/snapshots.py:1086
 msgid "Saving config file…"
-msgstr "Чување конфигурационог фајла..."
+msgstr "Чување конфигурационог фајла…"
 
-#: common/snapshots.py:1042
-#, fuzzy
+#: common/snapshots.py:1167
 msgid "Saving permissions…"
-msgstr "Чување дозвола..."
+msgstr "Чување дозвола…"
 
-#: common/snapshots.py:1150
+#: common/snapshots.py:1279
 #, python-brace-format
 msgid "Found leftover {snapshot_id} which can be continued."
 msgstr "Пронађен преостали {snapshot_id} који може бити настављен."
 
-#: common/snapshots.py:1169
+#: common/snapshots.py:1302
 #, python-brace-format
 msgid "Removing leftover {snapshot_id} folder from last run"
 msgstr "Уклањање преосталог {snapshot_id} фолдера од прошлог покретања"
 
-#: common/snapshots.py:1179
+#: common/snapshots.py:1312
 msgid "Can't remove folder"
 msgstr "Неуспешно уклањање фолдера"
 
-#: common/snapshots.py:1222
+#: common/snapshots.py:1366
 msgid "Taking snapshot"
 msgstr "Прављење снимка"
 
-#: common/snapshots.py:1254
+#: common/snapshots.py:1417
 msgid "Success"
-msgstr ""
+msgstr "Uspeh"
 
-#: common/snapshots.py:1255
+#: common/snapshots.py:1420
 msgid "Partial transfer due to error"
-msgstr ""
+msgstr "Delimičan prenos zbog greške"
 
-#: common/snapshots.py:1256
+#: common/snapshots.py:1421
 msgid "Partial transfer due to vanished source files (see 'man rsync')"
 msgstr ""
+"Delimičan prenos zbog iščezlih izvornih fajlova (pogledajte 'man rsync')"
 
-#: common/snapshots.py:1259
+#: common/snapshots.py:1425
 #, python-brace-format
 msgid "'rsync' ended with exit code {exit_code}"
-msgstr ""
+msgstr "'rsync' se završio sa izlaznim kodom {exit_code}"
 
-#: common/snapshots.py:1268
+#: common/snapshots.py:1438
 msgid "See 'man rsync' for more details"
-msgstr ""
+msgstr "Više detalja možete naći na 'man rsync'"
 
-#: common/snapshots.py:1272
+#: common/snapshots.py:1445
 msgid ""
 "Negative rsync exit codes are signal numbers, see 'kill -l' and 'man kill'"
 msgstr ""
+"Negativni rsync izlazni kodovi su signalni brojevi, pogledajte 'kill -l' i "
+"'man kill'"
 
-#: common/snapshots.py:1287
+#: common/snapshots.py:1466
 msgid "Nothing changed, no new snapshot necessary"
 msgstr "Нишата није промењено, није потребан нови снимак"
 
-#: common/snapshots.py:1318
+#: common/snapshots.py:1510
 #, python-brace-format
 msgid "Can't rename {new_path} to {path}"
 msgstr "Неуспешно преименовање {new_path} у {path}"
 
-#: common/snapshots.py:1636 common/snapshots.py:1688
-msgid "Smart remove"
-msgstr "Паметно уклањање"
+#: common/snapshots.py:1828 common/snapshots.py:1880
+msgid "Smart removal"
+msgstr "Pametno uklanjanje"
 
-#: common/snapshots.py:1663
+#: common/snapshots.py:1855
 msgid "Removing old snapshots"
 msgstr "Уклањање старог снимка"
 
-#: common/snapshots.py:1698
+#: common/snapshots.py:1890
 msgid "Trying to keep min free space"
 msgstr "Покушавамо сачувати минимални слободан простор"
 
-#: common/snapshots.py:1737
-#, fuzzy, python-brace-format
+#: common/snapshots.py:1929
+#, python-brace-format
 msgid "Trying to keep min {perc} free inodes"
-msgstr "Покушавамо остварити минимум {perc} слободних inode-a"
+msgstr "Pokušavamo ostvariti minimum {perc} slobodnih inode-ova"
 
-#: common/snapshots.py:2821 qt/app.py:1616
+#: common/snapshots.py:2989 qt/app.py:1743
 msgid "Now"
 msgstr "Сада"
 
-#: common/sshtools.py:215
-#, fuzzy, python-brace-format
+#: common/sshtools.py:239
+#, python-brace-format
 msgid "Can't mount {sshfs}"
-msgstr "Неуспешно монтирање {sshfs}"
+msgstr "Nemoguće montirati {sshfs}"
 
-#: common/sshtools.py:275
+#: common/sshtools.py:301
 msgid "ssh-agent not found. Please make sure it is installed."
-msgstr ""
+msgstr "ssh-agent nije pronađen. Molim vas da se uvjerite da je instaliran."
 
-#: common/sshtools.py:418
+#: common/sshtools.py:444
 msgid ""
 "Could not unlock ssh private key. Wrong password or password not available "
 "for cron."
 msgstr ""
+"Nije moguće otključati ssh privatni ključ. Pogrešna lozinka ili lozinka nije"
+" dostupna za cron."
 
-#: common/sshtools.py:506
+#: common/sshtools.py:535
 #, python-brace-format
 msgid "Cipher {cipher} failed for {host}."
-msgstr ""
+msgstr "Šifrovanje {cipher} nije uspelo za {host}."
 
-#: common/sshtools.py:653
+#: common/sshtools.py:682
 msgid "Remote path exists but is not a directory."
-msgstr ""
+msgstr "Udaljena putanja postoji, ali nije direktorijum."
 
-#: common/sshtools.py:658
+#: common/sshtools.py:687
 msgid "Remote path is not writable."
-msgstr ""
+msgstr "Udaljena putanja nije dostupan za pisanje."
 
-#: common/sshtools.py:663
+#: common/sshtools.py:692
 msgid "Remote path is not executable."
-msgstr ""
+msgstr "Udaljena putanja nije izvršna."
 
-#: common/sshtools.py:668
-#, fuzzy
+#: common/sshtools.py:697
 msgid "Couldn't create remote path."
-msgstr "Неуспешно креирање фолдера."
+msgstr "Nije moguće kreirati udaljenu putanju."
 
-#: common/sshtools.py:948
+#: common/sshtools.py:981
 #, python-brace-format
 msgid "Remote host {host} doesn't support {command}"
-msgstr ""
+msgstr "Udaljeni domaćin {host} ne podržava {command}"
 
-#: common/sshtools.py:952 common/sshtools.py:961
+#: common/sshtools.py:985 common/sshtools.py:994
 msgid "Look at 'man backintime' for further instructions"
-msgstr ""
+msgstr "Pogledajte 'man backintime' za dalja uputstva"
 
-#: common/sshtools.py:956
+#: common/sshtools.py:989
 #, python-brace-format
 msgid "Check commands on host {host} returned unknown error"
-msgstr ""
+msgstr "Komande provjere na domaćinu {host} su vratile nepoznatu grešku"
 
-#: common/sshtools.py:977
+#: common/sshtools.py:1010
 #, python-brace-format
 msgid "Remote host {host} doesn't support hardlinks"
-msgstr ""
+msgstr "Udaljeni domaćin {host} ne podržava tvrde veze"
 
-#: common/sshtools.py:1060
+#: common/sshtools.py:1164
 #, python-brace-format
-msgid "Copy public ssh-key \"{pubkey}\" to remote host \"{host}\""
-msgstr "Копирај јавни ssh кључ \"{pubkey}\" на удаљени хост \"{host}\""
+msgid "Copy public ssh-key \"{pubkey}\" to remote host \"{host}\"."
+msgstr "Копирај јавни ssh кључ \"{pubkey}\" на удаљени хост \"{host}\"."
 
-#: common/sshtools.py:1062
+#: common/sshtools.py:1166
 #, python-brace-format
-msgid "Please enter password for \"{user}\""
-msgstr "Молим вас унесите лозинку за \"{user}\""
+msgid "Please enter a password for \"{user}\"."
+msgstr "Молим вас унесите лозинку за \"{user}\"."
 
-#: qt/app.py:167
+#: qt/aboutdlg.py:44 qt/app.py:572
+msgid "About"
+msgstr "О апликацији"
+
+#: qt/aboutdlg.py:68 qt/aboutdlg.py:106
+msgid "Authors"
+msgstr "Autori"
+
+#: qt/aboutdlg.py:69 qt/aboutdlg.py:112
+msgid "Translations"
+msgstr "Prevodi"
+
+#: qt/aboutdlg.py:70 qt/aboutdlg.py:118
+msgid "License"
+msgstr "Licenca"
+
+#: qt/app.py:169
 msgid "Shortcuts"
 msgstr "Пречице"
 
-#: qt/app.py:187
-#, fuzzy
+#: qt/app.py:189
 msgid ""
 "This folder doesn't exist\n"
 "in the current selected snapshot."
 msgstr ""
-"Овај фолдер не постоји\n"
-"у тренутно изабраном снимку."
+"Ovaj folder ne postoji\n"
+"u trenutno izabranom snimku."
 
-#: qt/app.py:252
+#: qt/app.py:256
 msgid "Add to Include"
 msgstr "Додај у листу инклузија"
 
-#: qt/app.py:254 qt/logviewdialog.py:186
+#: qt/app.py:258
 msgid "Add to Exclude"
 msgstr "Додај у Изузетке"
 
-#: qt/app.py:339
+#: qt/app.py:343
 #, python-brace-format
 msgid ""
-"{appName} is not configured. Would you like to restore a previous "
-"configuration?"
+"{app_name} appears to be running for the first time as no configuration is "
+"found."
 msgstr ""
+"Izgleda da se {app_name} pokreće prvi put pošto konfiguracija nije "
+"pronađena."
 
-#: qt/app.py:368
-#, fuzzy
+#: qt/app.py:348
 msgid ""
-"Can't find snapshots folder.\n"
-"If it is on a removable drive please plug it in and then press OK."
+"Import an existing configuration (from a backup target folder or another "
+"computer)?"
 msgstr ""
-"Ne mogu da pronađem direktorijum sa snimcima.\n"
-"Ako se nalazi na izmenjivom mediju, molim da ga priključite i pritisnete OK."
+"Uvezite postojeću konfiguraciju (iz direktorijum sa rezervnim kopijama ili "
+"sa drugog računara)?"
 
-#: qt/app.py:453
-#, fuzzy
+#: qt/app.py:375
+msgid "Can't find snapshots folder."
+msgstr "Ne mogu da pronađem direktorijum sa snimcima."
+
+#: qt/app.py:376
+msgid "If it is on a removable drive please plug it in and then press OK."
+msgstr ""
+"Ako se nalazi na prenosivom disku, molim vas priključite ga i pritisnete OK."
+
+#: qt/app.py:481
 msgid "Take a snapshot"
-msgstr "Направи снимак"
+msgstr "Napravi snimak"
 
-#: qt/app.py:455
+#: qt/app.py:483
 msgid "Use modification time & size for file change detection."
-msgstr ""
+msgstr "Koristi vreme i veličinu za detekciju promene datoteka."
 
-#: qt/app.py:458
-#, fuzzy
+#: qt/app.py:486
 msgid "Take a snapshot (checksum mode)"
-msgstr "Направи снимак са контролним бројем"
+msgstr "Napravi snimak (checksum režim)"
 
-#: qt/app.py:460
-#, fuzzy
+#: qt/app.py:488
 msgid "Use checksums for file change detection."
-msgstr "Користи контролни број за примећивање промена."
+msgstr "Koristi checksum-ove za detekciju promene datoteka."
 
-#: qt/app.py:463 qt/qtsystrayicon.py:85
+#: qt/app.py:491 qt/qtsystrayicon.py:86
 msgid "Pause snapshot process"
 msgstr "Паузирај процес снимања"
 
-#: qt/app.py:468 qt/qtsystrayicon.py:89
+#: qt/app.py:496 qt/qtsystrayicon.py:90
 msgid "Resume snapshot process"
 msgstr "Настави процес снимања"
 
-#: qt/app.py:472 qt/qtsystrayicon.py:94
+#: qt/app.py:500 qt/qtsystrayicon.py:95
 msgid "Stop snapshot process"
 msgstr "Заустави процес снимања"
 
-#: qt/app.py:476
-#, fuzzy
+#: qt/app.py:504
 msgid "Refresh snapshot list"
-msgstr "Обнови листу снимака"
+msgstr "Osveži listu snimaka"
 
-#: qt/app.py:480
-#, fuzzy
+#: qt/app.py:508
 msgid "Name snapshot"
-msgstr "Направи снимак"
+msgstr "Imenuj snimak"
 
-#: qt/app.py:484
-#, fuzzy
+#: qt/app.py:512
 msgid "Remove snapshot"
-msgstr "Уклони снимак"
+msgstr "Ukloni snimak"
 
-#: qt/app.py:488
-#, fuzzy
+#: qt/app.py:516
 msgid "View snapshot log"
-msgstr "Погледај извештај снимака"
+msgstr "Pogledaj izveštaj snimka"
 
-#: qt/app.py:492
-#, fuzzy
+#: qt/app.py:520
 msgid "View last log"
-msgstr "Прикажи последњи извештај"
+msgstr "Prikaži poslednji izveštaj"
 
-#: qt/app.py:496
-#, fuzzy
+#: qt/app.py:524
 msgid "Manage profiles…"
-msgstr "Главни профил"
+msgstr "Главни профил…"
 
-#: qt/app.py:500
+#: qt/app.py:528
 msgid "Shutdown"
 msgstr "Искључивање"
 
-#: qt/app.py:502
-#, fuzzy
+#: qt/app.py:530
 msgid "Shut down system after snapshot has finished."
-msgstr "Искључи систем након завршетка снимања."
+msgstr "Isključi sistem nakon završetka snimka."
 
-#: qt/app.py:504
+#: qt/app.py:532
 msgid "Setup language…"
-msgstr ""
+msgstr "Podesi jezik…"
 
-#: qt/app.py:508
+#: qt/app.py:536
 msgid "Exit"
 msgstr "Излаз"
 
-#: qt/app.py:512
+#: qt/app.py:540
 msgid "Help"
 msgstr "Помоћ"
 
-#: qt/app.py:516
-#, fuzzy
+#: qt/app.py:544
 msgid "Profiles config file"
-msgstr "Чување конфигурационог фајла"
+msgstr "Konfiguracioni fajl profila"
 
-#: qt/app.py:519 qt/languagedialog.py:219
+#: qt/app.py:547 qt/languagedialog.py:222
 msgid "Website"
 msgstr "Веб сајт"
 
-#: qt/app.py:522 qt/app.py:1261
+#: qt/app.py:550 qt/app.py:1375
 msgid "Changelog"
 msgstr "Извештај промена"
 
-#: qt/app.py:525
+#: qt/app.py:553
 msgid "FAQ"
 msgstr "Честа питања"
 
-#: qt/app.py:528
+#: qt/app.py:556
 msgid "Ask a question"
 msgstr "Постави питање"
 
-#: qt/app.py:531
+#: qt/app.py:559
 msgid "Report a bug"
 msgstr "Пријави грешку"
 
-#: qt/app.py:534
+#: qt/app.py:562
 msgid "Translation"
-msgstr ""
+msgstr "Prevod"
 
-#: qt/app.py:537 qt/app.py:1834
-msgid "About"
-msgstr "О апликацији"
+#: qt/app.py:564
+msgid "Shows the message about participation in translation again."
+msgstr "Ponovno prikaži poruku o učestvovanju u prevodu."
 
-#: qt/app.py:540 qt/restoredialog.py:47 qt/settingsdialog.py:2212
-#: qt/snapshotsdialog.py:140 qt/snapshotsdialog.py:145
+#: qt/app.py:568
+msgid "Encryption Transition (EncFS)"
+msgstr "Prevod enkripcije (EncFS)"
+
+#: qt/app.py:570
+msgid "Shows the message about EncFS removal again."
+msgstr "Ponovo prikaži poruku o uklanjanju EncFS."
+
+#: qt/app.py:575 qt/restoredialog.py:46 qt/snapshotsdialog.py:164
+#: qt/snapshotsdialog.py:169
 msgid "Restore"
 msgstr "Поврати"
 
-#: qt/app.py:542
+#: qt/app.py:577
 msgid "Restore the selected files or folders to the original destination."
 msgstr "Повратак одабраних фајлова или фолдера на њихову првобитну локацију."
 
-#: qt/app.py:545 qt/app.py:1421 qt/app.py:1453 qt/snapshotsdialog.py:142
-#, fuzzy
+#: qt/app.py:580 qt/app.py:1546 qt/app.py:1578 qt/snapshotsdialog.py:166
 msgid "Restore to …"
-msgstr "Поврати на…"
+msgstr "Povrati na …"
 
-#: qt/app.py:547
+#: qt/app.py:582
 msgid "Restore the selected files or folders to a new destination."
 msgstr "Повратак одабраних фајлова или фолдера на нову локацију."
 
-#: qt/app.py:552
-#, fuzzy
+#: qt/app.py:587
 msgid ""
 "Restore the currently shown folder and all its contents to the original "
 "destination."
 msgstr ""
-"Повратак тренутно приказаног фолдера и његовог садржаја на њихову првобитну "
-"локацију."
+"Vrati trenutno prikazan folder i sav njegov sadržaj na prvobitno odredište."
 
-#: qt/app.py:557
-#, fuzzy
+#: qt/app.py:592
 msgid ""
 "Restore the currently shown folder and all its contents to a new "
 "destination."
 msgstr ""
-"Повратак тренутно приказаног фолдера и његовог садржаја на нову локацију."
+"Vrati trenutno prikazan folder i sav njegov sadržaj na novo odredište."
 
-#: qt/app.py:560
+#: qt/app.py:595
 msgid "Up"
 msgstr "Горе"
 
-#: qt/app.py:563 qt/settingsdialog.py:2168
+#: qt/app.py:598 qt/settingsdialog.py:2448
 msgid "Show hidden files"
 msgstr "Прикажи скривене фајлове"
 
-#: qt/app.py:566
-#, fuzzy
+#: qt/app.py:601
 msgid "Compare snapshots…"
-msgstr "Направи снимак"
+msgstr "Направи снимак…"
 
-#: qt/app.py:627
+#: qt/app.py:660
+msgid "Back In &Time"
+msgstr "Back In &Time"
+
+#: qt/app.py:665
 msgid "&Backup"
-msgstr ""
+msgstr "&Rezervna kopija"
 
-#: qt/app.py:638
+#: qt/app.py:676
 msgid "&Restore"
 msgstr "Повратак"
 
-#: qt/app.py:644
+#: qt/app.py:682
 msgid "&Help"
 msgstr "Помоћ"
 
-#: qt/app.py:761
-#, fuzzy
+#: qt/app.py:818
 msgid ""
-"If you close this window Back In Time will not be able to shut down your system when the snapshot has finished.\n"
-"Do you really want to close?"
+"If you close this window, Back In Time will not be able to shut down your "
+"system when the snapshot is finished."
 msgstr ""
-"Ако затворите овај прозор Back In Time неће моћи да угаси ваш систем када се снимање буде завршило.\n"
-"Да ли сигурно желите да га затворите?"
+"Ako zatvorite ovaj prozor Back In Time neće moći da ugasi vaš sistem kada se"
+" snimak završi."
 
-#: qt/app.py:905
+#: qt/app.py:821
+msgid "Do you really want to close it?"
+msgstr "Da li sigurno želite da ga zatvorite?"
+
+#: qt/app.py:987
 msgid "Working:"
 msgstr "Радим:"
 
-#: qt/app.py:953
+#: qt/app.py:1035
 msgid "Done, no backup needed"
 msgstr "Завршено, снимање није потребно"
 
-#: qt/app.py:962
-#, fuzzy
+#: qt/app.py:1044
 msgid "Working"
-msgstr "Radim"
+msgstr "Obrada"
 
-#: qt/app.py:971 qt/messagebox.py:76
+#: qt/app.py:1053 qt/messagebox.py:78
 msgid "Error"
 msgstr "Грешка"
 
-#: qt/app.py:994 qt/qtsystrayicon.py:202
+#: qt/app.py:1076
 msgid "Sent"
-msgstr ""
+msgstr "Poslato"
 
-#: qt/app.py:995 qt/qtsystrayicon.py:203
+#: qt/app.py:1077
 msgid "Speed"
-msgstr ""
+msgstr "Brzina"
 
-#: qt/app.py:996 qt/qtsystrayicon.py:204
+#: qt/app.py:1078
 msgid "ETA"
-msgstr ""
+msgstr "ETA"
 
-#: qt/app.py:1050
+#: qt/app.py:1140
 msgid "Global"
 msgstr "Глобално"
 
-#: qt/app.py:1051
+#: qt/app.py:1141
 msgid "Root"
 msgstr "Root"
 
-#: qt/app.py:1052
+#: qt/app.py:1142
 msgid "Home"
 msgstr "Home"
 
-#: qt/app.py:1067
+#: qt/app.py:1170
 msgid "Backup folders"
 msgstr "Direktorijumi za rezervne kopije"
 
-#: qt/app.py:1155
+#: qt/app.py:1266
 msgid "Snapshot Name"
 msgstr "Име Снимка"
 
-#: qt/app.py:1202
-#, fuzzy
+#: qt/app.py:1313
 msgid "Are you sure you want to remove this snapshot?"
 msgid_plural "Are you sure you want to remove these snapshots?"
-msgstr[0] "Da li ste sigurni da želite da uklonite snimak"
-msgstr[1] "Da li ste sigurni da želite da uklonite snimak"
-msgstr[2] "Da li ste sigurni da želite da uklonite snimak"
+msgstr[0] "Da li ste sigurni da želite da uklonite ovaj snimak?"
+msgstr[1] "Da li ste sigurni da želite da uklonite ove snimke?"
+msgstr[2] "Da li ste sigurni da želite da uklonite ove snimke?"
 
-#: qt/app.py:1294
+#: qt/app.py:1408
 #, python-brace-format
 msgid ""
 "Create backup copies with trailing {suffix}\n"
 "before overwriting or removing local elements."
 msgstr ""
+"Napravite rezervne kopije sa pratećim {suffix}\n"
+"pre pisanja preko ili uklanjanja lokalnih elemenata."
 
-#: qt/app.py:1300 qt/settingsdialog.py:774
+#: qt/app.py:1416
 #, python-brace-format
 msgid ""
-"Newer versions of files will be renamed with trailing {suffix} before restoring.\n"
-"If you don't need them anymore you can remove them with {cmd}"
+"Newer versions of files will be renamed with trailing {suffix} before "
+"restoring. If you don't need them anymore you can remove them with the "
+"following command:"
 msgstr ""
+"Novije verzije fajlova će se preimenovati sa pretećim {suffix} prije "
+"vraćanja. Ako vam više ne trebaju, možete ih ukloniti pomoću komande:"
 
-#: qt/app.py:1314
+#: qt/app.py:1432
 msgid ""
 "Only restore elements which do not exist or\n"
 "are newer than those in destination.\n"
 "Using \"rsync --update\" option."
 msgstr ""
+"Vratite samo elemente koji nepostoje ili\n"
+"su noviji od onih u odredištu.\n"
+"Korišćenje opcije \"rsync --update\"."
 
-#: qt/app.py:1347
+#: qt/app.py:1467
 msgid "Remove newer elements in original folder."
-msgstr ""
+msgstr "Ukloni novije elemente u originalnom folderu."
 
-#: qt/app.py:1348
+#: qt/app.py:1470
 msgid ""
-"Restore selected files or folders to the original destination and\n"
-"delete files or folders which are not in the snapshot.\n"
-"Be extremely careful because this will\n"
-"delete files and folders which were\n"
-"excluded during taking the snapshot."
+"Restore selected files or folders to the original destination and delete "
+"files or folders which are not in the snapshot. Be extremely careful because"
+" this will delete files and folders which were excluded during taking the "
+"snapshot."
 msgstr ""
+"Vratite odabrane datoteke ili foldere na originalno odredište i izbrišite datoteke ili foldere koji se ne nalaze u snimku. Budite izuzetno oprezni\n"
+"jer će ovo obrisati datoteka i foldere koji su isključeni tokom kreacije snimka."
 
-#: qt/app.py:1361
-#, fuzzy, python-brace-format
+#: qt/app.py:1481
+#, python-brace-format
 msgid ""
 "Do you really want to restore this element into the new folder\n"
 "{path}?"
 msgid_plural ""
 "Do you really want to restore these elements into the new folder\n"
 "{path}?"
-msgstr[0] "Неуспешно чување снимка {snapshot_id} !!!"
-msgstr[1] "Неуспешно чување снимка {snapshot_id} !!!"
-msgstr[2] "Неуспешно чување снимка {snapshot_id} !!!"
+msgstr[0] ""
+"Da li zaista želite da vratite ovaj element u novi folder\n"
+"{path}?"
+msgstr[1] ""
+"Da li zaista želite da vratite ove elemente u novi folder\n"
+"{path}?"
+msgstr[2] ""
+"Da li zaista želite da vratite ove elemente u novi folder\n"
+"{path}?"
 
-#: qt/app.py:1370
-#, fuzzy
+#: qt/app.py:1490
 msgid "Do you really want to restore this element?"
 msgid_plural "Do you really want to restore these elements?"
-msgstr[0] "Да ли желите додати ово као изузетак?"
-msgstr[1] "Да ли желите додати ово као изузетак?"
-msgstr[2] "Да ли желите додати ово као изузетак?"
+msgstr[0] "Da li zaista želite da vratite ovaj element?"
+msgstr[1] "Da li zaista želite da vratite ove elemente?"
+msgstr[2] "Da li zaista želite da vratite ove elemente?"
 
-#: qt/app.py:1385
+#: qt/app.py:1505
 #, python-brace-format
 msgid "Are you sure you want to remove all newer files in {path}?"
-msgstr ""
+msgstr "Da li ste sigurni da želite da uklonite sve novije fajlove u {path}?"
 
-#: qt/app.py:1388
+#: qt/app.py:1508
 msgid ""
 "Are you sure you want to remove all newer files in your original folder?"
 msgstr ""
+"Da li ste sigurni da želite da uklonite sve novije fajlove u originalnom "
+"folderu?"
 
-#: qt/app.py:1393
+#: qt/app.py:1514
+#, python-brace-format
 msgid ""
-"WARNING: Deleting files in filesystem root could break your whole system!"
+"{BOLD}Warning{BOLDEND}: Deleting files in the filesystem root could break "
+"your entire system."
 msgstr ""
+"{BOLD}Upozorenje{BOLDEND}: Brisanje fajlova u root sistemu fajlova može "
+"slomiti vaš cijeli sistem."
 
-#: qt/app.py:1623
-#, fuzzy
+#: qt/app.py:1750
 msgid "Snapshot"
-msgstr "Snimci"
+msgstr "Snimak"
 
-#: qt/app.py:1660
-#, fuzzy, python-brace-format
+#: qt/app.py:1787
+#, python-brace-format
 msgid "Restore {path}"
 msgstr "Povrati {path}"
 
-#: qt/app.py:1662
-#, fuzzy, python-brace-format
+#: qt/app.py:1789
+#, python-brace-format
 msgid "Restore {path} to …"
-msgstr "Povrati {path}"
+msgstr "Povrati {path} …"
 
-#: qt/app.py:1819
+#: qt/app.py:1948
 msgid "The language settings take effect only after restarting Back In Time."
 msgstr ""
+"Jezička podešavanja stupaju na snagu tek nakon ponovnog pokretanja Back In "
+"Time."
 
-#: qt/app.py:1859 qt/app.py:1876
-msgid "Authors"
+#: qt/encfsmsgbox.py:42
+msgid ""
+"Support for EncFS will be discontinued in the foreseeable future. It is not "
+"recommended to use that mode for a profile furthermore."
 msgstr ""
+"Podrška za EncFS će biti uklonjena u doglednoj budućnosti. Osim toga ne "
+"preporučuje se dalje korišćenje istog za profil."
 
-#: qt/app.py:1860 qt/app.py:1879
-msgid "Translations"
+#: qt/encfsmsgbox.py:46
+#, python-brace-format
+msgid ""
+"A decision on a replacement for continued support of encrypted backups is "
+"still pending, depending on project resources and contributor availability. "
+"More details are available in this {whitepaper}."
 msgstr ""
+"Odluka o zameni kontinuirane podrške za šifriranje sigurnosne kopije još "
+"uvek je na čekanju, zavisi od resursa projekta i dostupnosti saradnika. Više"
+" detalja dostupno je u ovim {whitepaper}."
 
-#: qt/app.py:1861 qt/app.py:1882
-msgid "License"
+#: qt/encfsmsgbox.py:52 qt/encfsmsgbox.py:84 qt/settingsdialog.py:1270
+msgid "whitepaper"
+msgstr "beli papiri"
+
+#: qt/encfsmsgbox.py:66
+msgid ""
+"The support for encrypted snapshot profiles is undergoing significant "
+"changes, and EncFS will be removed in the foreseeable future."
 msgstr ""
+"Podrška za šifrovane profile snimka prolazi kroz značajne promene, i EncFS "
+"će biti uklonjeni u dogledno vreme."
 
-#: qt/languagedialog.py:29
+#: qt/encfsmsgbox.py:75
+msgid "The following profile(s) use encryption with EncFS:"
+msgstr "Sledeći profil(i) koristi enkripciju sa EncFS:"
+
+#: qt/encfsmsgbox.py:77
+#, python-brace-format
+msgid ""
+"A decision on a replacement for continued support of encrypted backups is "
+"still pending, depending on project resources and contributor availability. "
+"Users are invited to join this discussion. Updated details on the next steps"
+" are available in this {whitepaper}."
+msgstr ""
+"Odluka o zameni kontinuirane podrške za šifriranje sigurnosne kopije još "
+"uvek je na čekanju, zavisi od resursa projekta i dostupnosti saradnika. "
+"Korisnici su pozvani da se priključe diskusiji. Ažurirani detalji o naredim "
+"koracima dostupni su u ovim {whitepaper}."
+
+#: qt/encfsmsgbox.py:85
+msgid ""
+"This message will not be shown again. This dialog is available at any time "
+"via the help menu."
+msgstr ""
+"Ova poruka se više neće prikazati. Ovaj dijalog je dostupan u svakom "
+"trenutku preko menija za pomoć."
+
+#: qt/encfsmsgbox.py:87
+msgid "Your Back In Time Team"
+msgstr "Vaš Back In Time tim"
+
+#: qt/languagedialog.py:30
 msgid "Setup language"
-msgstr ""
+msgstr "Podesite jezik"
 
-#: qt/languagedialog.py:87
+#: qt/languagedialog.py:92
 msgid "System default"
-msgstr ""
+msgstr "Sistemski podrazumevano"
 
-#: qt/languagedialog.py:94
+#: qt/languagedialog.py:99
 msgid "Use operating systems language."
-msgstr ""
+msgstr "Koristi jezik operativnog sistema."
 
-#: qt/languagedialog.py:146
+#: qt/languagedialog.py:150
 #, python-brace-format
 msgid "Translated: {percent}"
-msgstr ""
+msgstr "Prevedeno: {percent}"
 
-#: qt/languagedialog.py:184
+#: qt/languagedialog.py:188
 #, python-brace-format
 msgid ""
 "Hello\n"
@@ -843,937 +945,1016 @@ msgstr ""
 "Жао нам је што вас ометамо, а ова се порука више неће приказивати. Овај диалог је доступан у било ком тренутку у менију за помоћ.\n"
 "Ваш Back In Time тим"
 
-#: qt/languagedialog.py:216
+#: qt/languagedialog.py:217
 msgid "translation platform"
-msgstr ""
+msgstr "platforma za prevod"
 
-#: qt/languagedialog.py:232
+#: qt/languagedialog.py:242
 msgid "Your translation"
-msgstr ""
+msgstr "Vaš prevod"
 
-#: qt/logviewdialog.py:62
+#: qt/logviewdialog.py:66
 msgid "Last Log View"
 msgstr "Приказ Последњег Дневника"
 
-#: qt/logviewdialog.py:64
+#: qt/logviewdialog.py:68
 msgid "Snapshot Log View"
 msgstr "Приказ Дневника Снимка"
 
-#: qt/logviewdialog.py:72 qt/qtsystrayicon.py:76 qt/settingsdialog.py:95
-#: qt/settingsdialog.py:330 qt/settingsdialog.py:2309
-#, fuzzy
-msgid "Profile"
-msgstr "Profil"
+#: qt/logviewdialog.py:76 qt/settingsdialog.py:178 qt/settingsdialog.py:414
+#: qt/settingsdialog.py:2627
+msgid "Profile:"
+msgstr "Profil:"
 
-#: qt/logviewdialog.py:80 qt/qttools.py:347 qt/snapshotsdialog.py:99
-msgid "Snapshots"
-msgstr "Снимци"
+#: qt/logviewdialog.py:84
+msgid "Snapshots:"
+msgstr "Снимци:"
 
-#: qt/logviewdialog.py:94
-#, fuzzy
-msgid "Filter"
-msgstr "Filter"
+#: qt/logviewdialog.py:99
+msgid "Filter:"
+msgstr "Filter:"
 
-#: qt/logviewdialog.py:100 qt/settingsdialog.py:815
+#: qt/logviewdialog.py:105 qt/settingsdialog.py:921
 msgid "All"
 msgstr "Све"
 
-#: qt/logviewdialog.py:106 qt/logviewdialog.py:109 qt/settingsdialog.py:814
+#: qt/logviewdialog.py:111 qt/logviewdialog.py:114 qt/settingsdialog.py:920
 msgid "Changes"
 msgstr "Измене"
 
-#: qt/logviewdialog.py:106 qt/logviewdialog.py:108 qt/settingsdialog.py:811
-#: qt/settingsdialog.py:814
+#: qt/logviewdialog.py:111 qt/logviewdialog.py:113 qt/settingsdialog.py:917
+#: qt/settingsdialog.py:920
 msgid "Errors"
 msgstr "Грешке"
 
-#: qt/logviewdialog.py:110 qt/messagebox.py:71
-#, fuzzy
+#: qt/logviewdialog.py:115 qt/messagebox.py:71
 msgid "Information"
-msgstr "Информације"
+msgid_plural "Information"
+msgstr[0] "Informacija"
+msgstr[1] "Informacije"
+msgstr[2] "Informacija"
 
-#: qt/logviewdialog.py:111
+#: qt/logviewdialog.py:117
 msgid "rsync transfer failures (experimental)"
-msgstr ""
+msgstr "rsync neuspjesi prenosa (eksperimentalno)"
 
-#: qt/logviewdialog.py:121
+#: qt/logviewdialog.py:128
 msgid "[E] Error, [I] Information, [C] Change"
 msgstr "[E] Грешка, [I] Информација, [C] Измена"
 
-#: qt/logviewdialog.py:124 qt/qtsystrayicon.py:98
+#: qt/logviewdialog.py:131 qt/qtsystrayicon.py:99
 msgid "decode paths"
 msgstr "декодирај путање"
 
-#: qt/logviewdialog.py:182
-msgid "Copy"
-msgstr "Копирај"
-
-#: qt/logviewdialog.py:190
-msgid "Decode"
-msgstr "Декодирај"
-
-#: qt/logviewdialog.py:212
-msgid "Do you want to exclude this?"
-msgstr "Да ли желите додати ово као изузетак?"
-
-#: qt/messagebox.py:82 qt/messagebox.py:90
+#: qt/messagebox.py:87 qt/messagebox.py:97
 msgid "Question"
 msgstr "Питање"
 
-#: qt/qtsystrayicon.py:103
+#: qt/qtsystrayicon.py:77
+#, python-brace-format
+msgid "Profile: {profile_name}"
+msgstr "Profil: \"{profile_name}\""
+
+#: qt/qtsystrayicon.py:104
 msgid "View Last Log"
 msgstr "Прикажи последњи извештај"
 
-#: qt/qtsystrayicon.py:107
+#: qt/qtsystrayicon.py:108
 #, python-brace-format
 msgid "Start {appname}"
-msgstr ""
+msgstr "Pokreni {appname}"
 
-#: qt/qtsystrayicon.py:169
-#, fuzzy
+#: qt/qtsystrayicon.py:174
 msgid "Working…"
 msgstr "Radim…"
 
-#: qt/qttools.py:370
+#: qt/qtsystrayicon.py:205
+msgid "Sent:"
+msgstr "Poslato:"
+
+#: qt/qtsystrayicon.py:206
+msgid "Speed:"
+msgstr "Brzina:"
+
+#: qt/qtsystrayicon.py:207
+msgid "ETA:"
+msgstr "ETA:"
+
+#: qt/qttools.py:404 qt/snapshotsdialog.py:123
+msgid "Snapshots"
+msgstr "Снимци"
+
+#: qt/qttools.py:427
 msgid "Today"
 msgstr "Данас"
 
-#: qt/qttools.py:377
+#: qt/qttools.py:434
 msgid "Yesterday"
 msgstr "Јуче"
 
-#: qt/qttools.py:386
+#: qt/qttools.py:443
 msgid "This week"
 msgstr "Ове недеље"
 
-#: qt/qttools.py:393
+#: qt/qttools.py:450
 msgid "Last week"
 msgstr "Претходна седмица"
 
-#: qt/qttools.py:539
+#: qt/qttools.py:596
 msgid "This is NOT a snapshot but a live view of your local files"
 msgstr "Ово НИЈЕ снимак, већ ужив приказ ваших локалних фајлова"
 
-#: qt/qttools.py:544
+#: qt/qttools.py:601
 #, python-brace-format
 msgid "Last check {time}"
-msgstr ""
+msgstr "Zadnja provera {time}"
 
-#: qt/restoredialog.py:60
+#: qt/restoredialog.py:59
 msgid "Show full Log"
 msgstr "Прикажи целокупни Дневник"
 
-#: qt/settingsdialog.py:87
-#, fuzzy
-msgid "Manage profiles"
-msgstr "Главни профил"
+#: qt/settingsdialog.py:96
+msgid "SSH Proxy"
+msgstr "SSH Proxy"
 
-#: qt/settingsdialog.py:104
+#: qt/settingsdialog.py:103 qt/settingsdialog.py:275 qt/settingsdialog.py:402
+msgid "Host:"
+msgstr "Domaćin:"
+
+#: qt/settingsdialog.py:107 qt/settingsdialog.py:280
+msgid "Port:"
+msgstr "Port:"
+
+#: qt/settingsdialog.py:111 qt/settingsdialog.py:285 qt/settingsdialog.py:408
+msgid "User:"
+msgstr "Korisnik:"
+
+#: qt/settingsdialog.py:120
+msgid ""
+"Connect to the target host via this proxy (also known as a jump host). See "
+"\"-J\" in the \"ssh\" command documentation or \"ProxyJump\" in "
+"\"ssh_config\" man page for details."
+msgstr ""
+"Nastavite do ženjenog hosta preko ovog proksija (poznatijeg kao jump host). "
+"Za detalje pogledaj \"-J\" u dokumentaciji za \"ssh\" komandu ili "
+"\"ProxyJump\" na \"ssh_config\" man stranici."
+
+#: qt/settingsdialog.py:170
+msgid "Manage profiles"
+msgstr "Upravljaj profilima"
+
+#: qt/settingsdialog.py:187
 msgid "Edit"
 msgstr "Uredi"
 
-#: qt/settingsdialog.py:108 qt/settingsdialog.py:566
+#: qt/settingsdialog.py:191 qt/settingsdialog.py:668
 msgid "Add"
-msgstr ""
+msgstr "Dodaj"
 
-#: qt/settingsdialog.py:112 qt/settingsdialog.py:515 qt/settingsdialog.py:584
+#: qt/settingsdialog.py:195 qt/settingsdialog.py:615 qt/settingsdialog.py:686
 msgid "Remove"
-msgstr ""
+msgstr "Ukloni"
 
-#: qt/settingsdialog.py:127
-#, fuzzy
+#: qt/settingsdialog.py:210
 msgid "&General"
-msgstr "Opšte"
+msgstr "Opšt&e"
 
-#: qt/settingsdialog.py:137 qt/settingsdialog.py:2311
-msgid "Mode"
-msgstr ""
+#: qt/settingsdialog.py:220 qt/settingsdialog.py:2629
+msgid "Mode:"
+msgstr "Mod:"
 
-#: qt/settingsdialog.py:152
-#, python-brace-format
-msgid ""
-"{app} uses EncFS for encryption. A recent security audit revealed several "
-"possible attack vectors for this. Please take a look at \"A NOTE ON "
-"SECURITY\" in \"man backintime\"."
-msgstr ""
-
-#: qt/settingsdialog.py:163 qt/settingsdialog.py:1922
+#: qt/settingsdialog.py:239 qt/settingsdialog.py:2161
 msgid "Where to save snapshots"
 msgstr "Gde da čuvam snimke"
 
-#: qt/settingsdialog.py:179
+#: qt/settingsdialog.py:255
 msgid "Folder"
-msgstr ""
+msgstr "Direktorijum"
 
-#: qt/settingsdialog.py:187
+#: qt/settingsdialog.py:263
 msgid "SSH Settings"
-msgstr ""
+msgstr "SSH Podešavanja"
 
-#: qt/settingsdialog.py:199 qt/settingsdialog.py:318
-#, fuzzy
-msgid "Host"
-msgstr "Računar"
+#: qt/settingsdialog.py:290
+msgid "Path:"
+msgstr "Putanja:"
 
-#: qt/settingsdialog.py:204
-msgid "Port"
-msgstr ""
+#: qt/settingsdialog.py:296
+msgid "Cipher:"
+msgstr "Šifra:"
 
-#: qt/settingsdialog.py:209 qt/settingsdialog.py:324
-#, fuzzy
-msgid "User"
-msgstr "Korisnik"
+#: qt/settingsdialog.py:302
+msgid "Private Key:"
+msgstr "Privatni Ključ:"
 
-#: qt/settingsdialog.py:214
-msgid "Path"
-msgstr ""
-
-#: qt/settingsdialog.py:220
-msgid "Cipher"
-msgstr ""
-
-#: qt/settingsdialog.py:226
-msgid "Private Key"
-msgstr ""
-
-#: qt/settingsdialog.py:236
+#: qt/settingsdialog.py:312
 msgid "Choose an existing private key file (normally named \"id_rsa\")"
-msgstr ""
+msgstr "Izaberite postojeću datoteku privatnog ključa (obično se zove \"id_rsa\")"
 
-#: qt/settingsdialog.py:246
+#: qt/settingsdialog.py:323
 msgid ""
 "Create a new SSH key without password (not allowed if a private key file is "
-"already selected)"
+"already selected)."
 msgstr ""
+"Kreirajte novi SSH ključ bez lozinke (nije dozvoljeno ako je fajl privatnog "
+"ključa već odabran)."
 
-#: qt/settingsdialog.py:266 qt/settingsdialog.py:275 qt/settingsdialog.py:281
+#: qt/settingsdialog.py:353 qt/settingsdialog.py:362 qt/settingsdialog.py:368
 msgid "Password"
-msgstr ""
+msgstr "Lozinka"
 
-#: qt/settingsdialog.py:287
+#: qt/settingsdialog.py:374
 msgid "Save Password to Keyring"
-msgstr ""
+msgstr "Sačuvaj lozinku u Keyring"
 
-#: qt/settingsdialog.py:291
+#: qt/settingsdialog.py:378
 msgid "Cache Password for Cron (Security issue: root can read password)"
 msgstr ""
+"Keširaj lozinku za Cron (Sigurnosni problem: root može čitati lozinku)"
 
-#: qt/settingsdialog.py:306
+#: qt/settingsdialog.py:390
 msgid "Advanced"
 msgstr "Napredno"
 
-#: qt/settingsdialog.py:336
-msgid "Full snapshot path"
-msgstr ""
+#: qt/settingsdialog.py:420 qt/settingsdialog.py:2283
+msgid "Full snapshot path:"
+msgstr "Puna putanja snimka:"
 
-#: qt/settingsdialog.py:343
+#: qt/settingsdialog.py:427
 msgid "Schedule"
 msgstr "Plan rada"
 
-#: qt/settingsdialog.py:355
+#: qt/settingsdialog.py:439
 msgid "Disabled"
 msgstr "Онемогућено"
 
-#: qt/settingsdialog.py:356
+#: qt/settingsdialog.py:440
 msgid "At every boot/reboot"
 msgstr "При сваком покретању/рестарту"
 
-#: qt/settingsdialog.py:358 qt/settingsdialog.py:360 qt/settingsdialog.py:362
-#, fuzzy, python-brace-format
+#: qt/settingsdialog.py:442 qt/settingsdialog.py:444 qt/settingsdialog.py:446
+#, python-brace-format
 msgid "Every {n} minute"
 msgid_plural "Every {n} minutes"
-msgstr[0] "Сваких {n} минута"
-msgstr[1] "Сваких {n} минута"
-msgstr[2] "Сваких {n} минута"
+msgstr[0] "Svakih {n} minut"
+msgstr[1] "Svakih {n} minuta"
+msgstr[2] "Svakih {n} minuta"
 
-#: qt/settingsdialog.py:363
+#: qt/settingsdialog.py:448
+#, python-brace-format
 msgid "Every hour"
-msgstr "Свакх сат времена"
+msgid_plural "Every {n} hours"
+msgstr[0] "Svakih {n} sat vremena"
+msgstr[1] "Svakih {n} sata vremena"
+msgstr[2] "Svakih {n} sati vremena"
 
-#: qt/settingsdialog.py:365 qt/settingsdialog.py:367 qt/settingsdialog.py:369
-#: qt/settingsdialog.py:371
-#, fuzzy, python-brace-format
+#: qt/settingsdialog.py:450 qt/settingsdialog.py:452 qt/settingsdialog.py:454
+#: qt/settingsdialog.py:456
+#, python-brace-format
 msgid "Every {n} hour"
 msgid_plural "Every {n} hours"
-msgstr[0] "Сваких {n} сати"
-msgstr[1] "Сваких {n} сати"
-msgstr[2] "Сваких {n} сати"
+msgstr[0] "Svakih {n} sat"
+msgstr[1] "Svakih {n} sati"
+msgstr[2] "Svakih {n} sati"
 
-#: qt/settingsdialog.py:372
-#, fuzzy
+#: qt/settingsdialog.py:457
 msgid "Custom hours"
-msgstr "Произвољни Сати"
+msgstr "Prilagođeni sati"
 
-#: qt/settingsdialog.py:373
-#, fuzzy
+#: qt/settingsdialog.py:458
 msgid "Every day"
-msgstr "Сваког Дана"
+msgstr "Svakog dana"
 
-#: qt/settingsdialog.py:374
+#: qt/settingsdialog.py:459
 msgid "Repeatedly (anacron)"
 msgstr "Учестало (anacron)"
 
-#: qt/settingsdialog.py:375
-#, fuzzy
+#: qt/settingsdialog.py:460
 msgid "When drive gets connected (udev)"
-msgstr "Када се диск повеже (udev)"
+msgstr "Kada se disk poveže (udev)"
 
-#: qt/settingsdialog.py:376
-#, fuzzy
+#: qt/settingsdialog.py:461
 msgid "Every week"
-msgstr "Сваке Недеље"
+msgstr "Svake nedelje"
 
-#: qt/settingsdialog.py:377
-#, fuzzy
+#: qt/settingsdialog.py:462
 msgid "Every month"
-msgstr "Сваког Месеца"
+msgstr "Svakog meseca"
 
-#: qt/settingsdialog.py:378
-#, fuzzy
+#: qt/settingsdialog.py:463
 msgid "Every year"
-msgstr "Сваке Године"
+msgstr "Svake godine"
 
-#: qt/settingsdialog.py:383
-#, fuzzy
-msgid "Day"
-msgstr "Dana"
+#: qt/settingsdialog.py:468
+msgid "Day:"
+msgstr "Dan:"
 
-#: qt/settingsdialog.py:394
-msgid "Weekday"
-msgstr ""
+#: qt/settingsdialog.py:479
+msgid "Weekday:"
+msgstr "Radni dan:"
 
-#: qt/settingsdialog.py:409
-#, fuzzy
-msgid "Hour"
-msgstr "Čas"
+#: qt/settingsdialog.py:495
+msgid "Hour:"
+msgstr "Sat:"
 
-#: qt/settingsdialog.py:424
-#, fuzzy
-msgid "Hours"
-msgstr "Čas"
+#: qt/settingsdialog.py:510
+msgid "Hours:"
+msgstr "Sati:"
 
-#: qt/settingsdialog.py:435
+#: qt/settingsdialog.py:521
 msgid ""
 "Run Back In Time repeatedly. This is useful if the computer is not running "
 "regularly."
 msgstr ""
+"Pokretanje Back In Time uzastopno. Ovo je korisno ako se kompjuter ne "
+"koristi često."
 
-#: qt/settingsdialog.py:442
-#, fuzzy
-msgid "Every"
-msgstr "Сваких"
+#: qt/settingsdialog.py:528
+msgid "Every:"
+msgstr "Svakih:"
 
-#: qt/settingsdialog.py:456
+#: qt/settingsdialog.py:542
 msgid "Hour(s)"
 msgstr "Сат(и)"
 
-#: qt/settingsdialog.py:457 qt/settingsdialog.py:634
+#: qt/settingsdialog.py:543 qt/settingsdialog.py:738
 msgid "Day(s)"
 msgstr "Дан(а)"
 
-#: qt/settingsdialog.py:458 qt/settingsdialog.py:635
+#: qt/settingsdialog.py:544 qt/settingsdialog.py:739
 msgid "Week(s)"
 msgstr "Седмица"
 
-#: qt/settingsdialog.py:459
+#: qt/settingsdialog.py:545
 msgid "Month(s)"
 msgstr "Месец(и)"
 
-#: qt/settingsdialog.py:469
+#: qt/settingsdialog.py:555
 msgid ""
 "Run Back In Time as soon as the drive is connected (only once every X days).\n"
 "You will be prompted for your sudo password."
 msgstr ""
+"Pokreni Back In Time čim se disk poveže (samo jednom svakih X dana)\n"
+"Od vas će biti traženo da unesete svoju sudo lozinku."
 
-#: qt/settingsdialog.py:484
-#, fuzzy
+#: qt/settingsdialog.py:564
+msgid "Enable logging of debug messages"
+msgstr "Omogućite evidentiranje poruka o greškama"
+
+#: qt/settingsdialog.py:568
+msgid "Writes debug-level messages into the system log via \"--debug\"."
+msgstr "Zapiši poruke debug nivoa u sistemski log pomoću \"--debug\"."
+
+#: qt/settingsdialog.py:570
+msgid ""
+"Caution: Only use this temporarily for diagnostics, as it generates a large "
+"amount of output."
+msgstr ""
+"Oprez: ovo koristite samo privremeno za dijagnostiku, jer generiše veliku "
+"količinu izlaza."
+
+#: qt/settingsdialog.py:583
 msgid "&Include"
-msgstr "Uključi"
+msgstr "&Priključi"
 
-#: qt/settingsdialog.py:491
+#: qt/settingsdialog.py:590
 msgid "Include files and folders"
 msgstr "Uključi fajlove i direktorijume"
 
-#: qt/settingsdialog.py:507 qt/settingsdialog.py:570
+#: qt/settingsdialog.py:607 qt/settingsdialog.py:672
 msgid "Add file"
 msgstr "Dodaj fajl"
 
-#: qt/settingsdialog.py:511 qt/settingsdialog.py:574
+#: qt/settingsdialog.py:611 qt/settingsdialog.py:676
 msgid "Add folder"
 msgstr "Dodaj direktorijum"
 
-#: qt/settingsdialog.py:521
-#, fuzzy
+#: qt/settingsdialog.py:621
 msgid "&Exclude"
-msgstr "Izostavi"
+msgstr "&Izostavi"
 
-#: qt/settingsdialog.py:528
+#: qt/settingsdialog.py:625
 #, python-brace-format
 msgid ""
-"Wildcards ({example1}) will be ignored with mode 'SSH encrypted'.\n"
-"Only single or double asterisks are allowed ({example2})"
+"{BOLD}Info{ENDBOLD}: In 'SSH encrypted' mode, only single or double "
+"asterisks are functional (e.g. {example2}). Other types of wildcards and "
+"patterns will be ignored (e.g. {example1}). Filenames are unpredictable in "
+"this mode due to encryption by EncFS."
 msgstr ""
+"{BOLD}Info{ENDBOLD}: U 'SSH šifrovanom' načinu rada, mogu funkcionisati samo"
+" jedna ili dve zvezdica (primer {example2}). Ostali tipovi džokerskih "
+"znakova i obrazaca će biti ignorisani (primer {example1}). Imena datoteka su"
+" nepredvidiva u ovom načinu rada zbog EncFS šifrovanja."
 
-#: qt/settingsdialog.py:543
+#: qt/settingsdialog.py:648
 msgid "Exclude patterns, files or folders"
 msgstr "Izostavi šablone, fajlove, ili direktorijume"
 
-#: qt/settingsdialog.py:556
-#, fuzzy
-msgid "Highly recommended"
-msgstr "Toplo preporučeno"
-
-#: qt/settingsdialog.py:579
+#: qt/settingsdialog.py:681
 msgid "Add default"
-msgstr ""
+msgstr "Dodaj podrazumevano"
 
-#: qt/settingsdialog.py:592
-msgid "Exclude files bigger than: "
-msgstr ""
+#: qt/settingsdialog.py:694
+msgid "Exclude files bigger than:"
+msgstr "Izostavi fajlove veće od:"
 
-#: qt/settingsdialog.py:594
-#, python-format
+#: qt/settingsdialog.py:698
+#, python-brace-format
+msgid "Exclude files bigger than value in {size_unit}."
+msgstr "Izostavi fajlove veće od {size_unit}."
+
+#: qt/settingsdialog.py:700
 msgid ""
-"Exclude files bigger than value in %(prefix)s.\n"
-"With 'Full rsync mode' disabled this will only affect new files\n"
-"because for rsync this is a transfer option, not an exclude option.\n"
-"So big files that have been backed up before will remain in snapshots\n"
-"even if they have changed."
+"With 'Full rsync mode' disabled, this will only impact new files since for "
+"rsync, this is a transfer option, not an exclusion option. Therefore, large "
+"files that have been backed up previously will persist in snapshots even if "
+"they have been modified."
 msgstr ""
+"Kada je 'Full rsync mode' onemogućen, ovo će uticati samo na nove datoteke "
+"jer za rsync ovo je opcija prenosa, a ne opcija isključivanja. Tako da će "
+"veliki fajlovi za koje je ranije napravljena rezervna kopija ostati u "
+"snimcima čak i ako su se promenili."
 
-#: qt/settingsdialog.py:616
-#, fuzzy
+#: qt/settingsdialog.py:720
 msgid "&Auto-remove"
-msgstr "Automatsko uklanjanje"
+msgstr "&Automatsko uklanjanje"
 
-#: qt/settingsdialog.py:622
-#, fuzzy
-msgid "Older than"
-msgstr "Stariji od"
+#: qt/settingsdialog.py:726
+msgid "Older than:"
+msgstr "Stariji od:"
 
-#: qt/settingsdialog.py:636
+#: qt/settingsdialog.py:740
 msgid "Year(s)"
 msgstr "Година"
 
-#: qt/settingsdialog.py:644
-#, fuzzy
-msgid "If free space is less than"
-msgstr "Ako je slobodan prostor manji od"
+#: qt/settingsdialog.py:748
+msgid "If free space is less than:"
+msgstr "Ako je slobodan prostor manji od:"
 
-#: qt/settingsdialog.py:664
-#, fuzzy
-msgid "If free inodes is less than"
-msgstr "Ako je slobodan prostor manji od"
+#: qt/settingsdialog.py:768
+msgid "If free inodes is less than:"
+msgstr "Ako je broj slobodnih inode-ova manji od:"
 
-#: qt/settingsdialog.py:678
-#, fuzzy
-msgid "Smart remove:"
-msgstr "Паметно уклањање"
+#: qt/settingsdialog.py:782
+msgid "Smart removal:"
+msgstr "Pametno uklanjanje:"
 
-#: qt/settingsdialog.py:689
+#: qt/settingsdialog.py:793
 msgid "Run in background on remote host."
-msgstr ""
+msgstr "Pokreni u pozadini na udaljenom domaćinu."
 
-#: qt/settingsdialog.py:690
-#, fuzzy
+#: qt/settingsdialog.py:794
 msgid "EXPERIMENTAL"
-msgstr "ЕКСПЕРИМЕНТАЛНО"
+msgstr "EKSPERIMENTALNO"
 
-#: qt/settingsdialog.py:696
+#: qt/settingsdialog.py:800
 msgid "Keep all snapshots for the last"
-msgstr ""
+msgstr "Zadrži sve snimke za poslednji"
 
-#: qt/settingsdialog.py:700 qt/settingsdialog.py:707
-#, fuzzy
+#: qt/settingsdialog.py:804 qt/settingsdialog.py:811
 msgid "day(s)."
-msgstr "Дан(а)"
+msgstr "Dan(a)."
 
-#: qt/settingsdialog.py:703
+#: qt/settingsdialog.py:807
 msgid "Keep one snapshot per day for the last"
-msgstr ""
+msgstr "Zadrži jedan snimak dnevno za poslednji"
 
-#: qt/settingsdialog.py:710
+#: qt/settingsdialog.py:814
 msgid "Keep one snapshot per week for the last"
-msgstr ""
+msgstr "Zadrži jedan snimak nedeljno za poslednji"
 
-#: qt/settingsdialog.py:714
-#, fuzzy
+#: qt/settingsdialog.py:818
 msgid "week(s)."
-msgstr "Седмица"
+msgstr "Nedelja/e."
 
-#: qt/settingsdialog.py:717
+#: qt/settingsdialog.py:821
 msgid "Keep one snapshot per month for the last"
-msgstr ""
+msgstr "Zadrži jedan snimak mesečno za poslednji"
 
-#: qt/settingsdialog.py:721
-#, fuzzy
+#: qt/settingsdialog.py:825
 msgid "month(s)."
-msgstr "Месец(и)"
+msgstr "mesec(i)."
 
-#: qt/settingsdialog.py:724
+#: qt/settingsdialog.py:828
 msgid "Keep one snapshot per year for all years."
-msgstr ""
+msgstr "Zadrži jedan snimak godišnje za sve godine."
 
-#: qt/settingsdialog.py:733
-#, fuzzy
+#: qt/settingsdialog.py:837
 msgid "Don't remove named snapshots."
-msgstr "Nemoj ukloniti imenovane snimke"
+msgstr "Nemoj ukloniti imenovane snimke."
 
-#: qt/settingsdialog.py:745
-#, fuzzy
+#: qt/settingsdialog.py:849
 msgid "&Options"
-msgstr "Opcije"
+msgstr "&Opcije"
 
-#: qt/settingsdialog.py:750
+#: qt/settingsdialog.py:854
 msgid "Enable notifications"
 msgstr "Omogući obaveštenja"
 
-#: qt/settingsdialog.py:754
+#: qt/settingsdialog.py:858
 msgid "Disable snapshots when on battery"
 msgstr "Onemogući snimke kada se računar napaja iz baterije"
 
-#: qt/settingsdialog.py:758
+#: qt/settingsdialog.py:862
 msgid "Power status not available from system"
 msgstr "Informacija o status napajanja nije dostupna od sistema"
 
-#: qt/settingsdialog.py:761
+#: qt/settingsdialog.py:865
 msgid "Run only one snapshot at a time"
-msgstr ""
+msgstr "Pokreni samo jedan snimak u isto vreme"
 
-#: qt/settingsdialog.py:763
+#: qt/settingsdialog.py:868
 msgid ""
-"Other snapshots will be blocked until the current snapshot is done.\n"
-"This is a global option. So it will affect all profiles for this user.\n"
-"But you need to activate this for all other users, too."
+"Other snapshots will be blocked until the current snapshot is done. This is "
+"a global option. So it will affect all profiles for this user. But you need "
+"to activate this for all other users, too."
 msgstr ""
+"Ostali snimci će biti blokirani dok se trenutni snimak ne završi. Ovo je "
+"globalna opcije. Tako da će uticati na sve profile za ovog korisnika. Ali "
+"ovo morate aktivirati i za sve ostale korisnike takođe."
 
-#: qt/settingsdialog.py:772
+#: qt/settingsdialog.py:876
 msgid "Backup replaced files on restore"
-msgstr ""
+msgstr "Rezervna kopija je zamenila fajlove prilikom vraćanja"
 
-#: qt/settingsdialog.py:785
+#: qt/settingsdialog.py:879
+#, python-brace-format
+msgid ""
+"Newer versions of files will be renamed with trailing {suffix} before "
+"restoring. If you don't need them anymore you can remove them with {cmd}"
+msgstr ""
+"Novije verzije fajlova će se preimenovati sa pretećim {suffix} prije "
+"vraćanja. Ako vam više ne trebaju, možete ih ukloniti pomoću {cmd}"
+
+#: qt/settingsdialog.py:891
 msgid "Continue on errors (keep incomplete snapshots)"
 msgstr "Nastavi nakon greške (zadrži nekompletan snimak)"
 
-#: qt/settingsdialog.py:789
+#: qt/settingsdialog.py:895
 msgid "Use checksum to detect changes"
 msgstr "Користи контролни број за примећивање промена"
 
-#: qt/settingsdialog.py:793
+#: qt/settingsdialog.py:899
 msgid "Take a new snapshot whether there were changes or not."
-msgstr ""
+msgstr "Napravi novi snimak bez obzira da li je bilo promena ili ne."
 
-#: qt/settingsdialog.py:800
-#, fuzzy
-msgid "Log Level"
-msgstr "Nivo detalja u izveštaju"
+#: qt/settingsdialog.py:906
+msgid "Log Level:"
+msgstr "Nivo detalja u izveštaju:"
 
-#: qt/settingsdialog.py:805
+#: qt/settingsdialog.py:911
 msgid "None"
 msgstr "Nijedan"
 
-#: qt/settingsdialog.py:825
-#, fuzzy
+#: qt/settingsdialog.py:931
 msgid "E&xpert Options"
-msgstr "Napredne opcije"
+msgstr "&Napredne opcije"
 
-#: qt/settingsdialog.py:830
-#, fuzzy
+#: qt/settingsdialog.py:936
 msgid ""
 "Caution: Change these options only if you really know what you are doing."
-msgstr "Izmeni ove opcije samo ako znaš šta radiš."
+msgstr "Oprez: Promenite ove opcija samo ako znate šta radite."
 
-#: qt/settingsdialog.py:835 qt/settingsdialog.py:851 qt/settingsdialog.py:873
+#: qt/settingsdialog.py:941 qt/settingsdialog.py:957 qt/settingsdialog.py:979
 #, python-brace-format
 msgid "Run 'rsync' with '{cmd}':"
-msgstr ""
+msgstr "Pokrenite 'rsync' sa '{cmd}':"
 
-#: qt/settingsdialog.py:842 qt/settingsdialog.py:858
+#: qt/settingsdialog.py:948 qt/settingsdialog.py:964
 msgid "as cron job"
-msgstr ""
+msgstr "kao cron posao"
 
-#: qt/settingsdialog.py:847 qt/settingsdialog.py:868 qt/settingsdialog.py:889
+#: qt/settingsdialog.py:953 qt/settingsdialog.py:974 qt/settingsdialog.py:995
 msgid "on remote host"
-msgstr ""
+msgstr "na udaljenom domaćinu"
 
-#: qt/settingsdialog.py:863
+#: qt/settingsdialog.py:969
 msgid "when taking a manual snapshot"
-msgstr ""
+msgstr "kada se kreira ručni snimak"
 
-#: qt/settingsdialog.py:876
+#: qt/settingsdialog.py:982
 msgid "(Please install 'nocache' to enable this option)"
-msgstr ""
+msgstr "(Molim vas instalirajte 'nocache' kako bi ste omogućili ovu opciju)"
 
-#: qt/settingsdialog.py:883
+#: qt/settingsdialog.py:989
 msgid "on local machine"
-msgstr ""
+msgstr "na lokalnoj mašini"
 
-#: qt/settingsdialog.py:894
+#: qt/settingsdialog.py:1000
 msgid "Redirect stdout to /dev/null in cronjobs."
-msgstr ""
+msgstr "Preusmerite stdout ka /dev/null u cron poslovima."
 
-#: qt/settingsdialog.py:903
+#: qt/settingsdialog.py:1005
+msgid ""
+"Cron will automatically send an email with attached output of cronjobs if an"
+" MTA is installed."
+msgstr ""
+"Cron će automatski poslati email sa priloženim izlazom cronjob-ova ukoliko "
+"je MTA instaliran."
+
+#: qt/settingsdialog.py:1011
 msgid "Redirect stderr to /dev/null in cronjobs."
-msgstr ""
+msgstr "Preusmerite stderr prema /dev/null u cron poslovima."
 
-#: qt/settingsdialog.py:915
-msgid "Limit rsync bandwidth usage"
+#: qt/settingsdialog.py:1016
+msgid ""
+"Cron will automatically send an email with attached errors of cronjobs if an"
+" MTA is installed."
 msgstr ""
+"Cron će automatski poslati email sa priloženim greškama od cronjob-ova "
+"ukoliko je MTA instaliran."
 
-#: qt/settingsdialog.py:918
+#: qt/settingsdialog.py:1024
+msgid "Limit rsync bandwidth usage:"
+msgstr "Ograniči upotrebu propusnog opsega rsync-a:"
+
+#: qt/settingsdialog.py:1027
 msgid "KB/sec"
-msgstr ""
+msgstr "KB/sek"
 
-#: qt/settingsdialog.py:956
+#: qt/settingsdialog.py:1071
 msgid "Preserve ACL"
 msgstr "Sačuvaj ACL"
 
-#: qt/settingsdialog.py:971
+#: qt/settingsdialog.py:1089
 msgid "Preserve extended attributes (xattr)"
 msgstr "Sačuvaj proširene atribute (xattr)"
 
-#: qt/settingsdialog.py:991
+#: qt/settingsdialog.py:1112
 msgid "Copy unsafe links (works only with absolute links)"
 msgstr "Kopiraj nebezbedni link (funkcioniše samo sa apsolutnim linkovima)"
 
-#: qt/settingsdialog.py:1024
+#: qt/settingsdialog.py:1148
+msgid "Restrict to one file system"
+msgstr "Ograniči na samo jedan fajl sistem"
+
+#: qt/settingsdialog.py:1168
 #, python-brace-format
 msgid "Options must be quoted e.g. {example}."
-msgstr ""
+msgstr "Opcije moraju biti pod navodnicima npr. {example}."
 
-#: qt/settingsdialog.py:1027
+#: qt/settingsdialog.py:1171
 msgid "Paste additional options to rsync"
-msgstr ""
+msgstr "Nalepi dodatne opcije za rsync"
 
-#: qt/settingsdialog.py:1042
-#, python-format
-msgid ""
-"Prefix to run before every command on remote host.\n"
-"Variables need to be escaped with \\$FOO.\n"
-"This doesn't touch rsync. So to add a prefix\n"
-"for rsync use \"%(cbRsyncOptions)s\" with\n"
-"%(rsync_options_value)s\n"
-"\n"
-"%(default)s: %(def_value)s"
-msgstr ""
-
-#: qt/settingsdialog.py:1050 qt/settingsdialog.py:2069
-msgid "default"
-msgstr ""
-
-#: qt/settingsdialog.py:1052
+#: qt/settingsdialog.py:1185
 msgid "Add prefix to SSH commands"
-msgstr ""
+msgstr "Dodaj prefiks SSH komandama"
 
-#: qt/settingsdialog.py:1065
+#: qt/settingsdialog.py:1187
+msgid "Prefix to run before every command on remote host."
+msgstr "Prefiks koji će se pokretati pre svake komande na udaljenom domaćinu."
+
+#: qt/settingsdialog.py:1188
+#, python-brace-format
+msgid ""
+"Variables need to be escaped with \\$FOO. This doesn't touch rsync. So to "
+"add a prefix for rsync use \"{example_value}\" with {rsync_options_value}."
+msgstr ""
+"Promenjive treba iskočiti sa \\$FOO. Ovo ne dotiče rsync. Tako da bi dodali "
+"prefix za rsync koristite \"{example_value}\" sa {rsync_options_value}."
+
+#: qt/settingsdialog.py:1196
+msgid "default"
+msgstr "podrazumevano"
+
+#: qt/settingsdialog.py:1211
 msgid "Check if remote host is online"
-msgstr ""
+msgstr "Proveri da li je udaljeni domaćin onlajn"
 
-#: qt/settingsdialog.py:1067
+#: qt/settingsdialog.py:1214
 msgid ""
-"Warning: if disabled and the remote host\n"
-"is not available, this could lead to some\n"
-"weird errors."
+"Warning: If disabled and the remote host is not available, this could lead "
+"to some weird errors."
 msgstr ""
+"Upozorenje: ukoliko je onemogućeno i udaljeno domaćin nije dostupan, ovo "
+"može dovesti do nekih čudnih grešaka."
 
-#: qt/settingsdialog.py:1071
-msgid "Check if remote host supports all necessary commands"
-msgstr ""
+#: qt/settingsdialog.py:1218
+msgid "Check if remote host supports all necessary commands."
+msgstr "Proveri da li udaljeni domaćin podržava sve neophodne komande."
 
-#: qt/settingsdialog.py:1073
+#: qt/settingsdialog.py:1221
 msgid ""
-"Warning: if disabled and the remote host\n"
-"does not support all necessary commands,\n"
-"this could lead to some weird errors."
+"Warning: If disabled and the remote host does not support all necessary "
+"commands, this could lead to some weird errors."
 msgstr ""
+"Upozorenje: ukoliko je onemogućeno i udaljeni domaćin ne podržava sve "
+"neophodne komande, ovo može dovesti do nekih čudnih grešaka."
 
-#: qt/settingsdialog.py:1089
+#: qt/settingsdialog.py:1237
 msgid "Restore Config"
-msgstr ""
+msgstr "Povrati konfiguraciju"
 
-#: qt/settingsdialog.py:1091
+#: qt/settingsdialog.py:1239
 msgid "Edit user-callback"
-msgstr ""
+msgstr "Promeni user-callback"
 
-#: qt/settingsdialog.py:1109
+#: qt/settingsdialog.py:1263
+#, python-brace-format
+msgid ""
+"Support for EncFS will be discontinued in the foreseeable future. A decision"
+" on a replacement for continued support of encrypted backups is still "
+"pending, depending on project resources and contributor availability. More "
+"details are available in this {whitepaper}."
+msgstr ""
+"Podrška za EncFS će biti uklonjena u doglednoj budućnosti. Odluka o zameni "
+"kontinuirane podrške za šifriranje sigurnosne kopije još uvek je na čekanju,"
+" zavisi od resursa projekta i dostupnosti saradnika. Više detalja dostupno "
+"je u ovim {whitepaper}."
+
+#: qt/settingsdialog.py:1285
 msgid "New profile"
 msgstr "Novi profil"
 
-#: qt/settingsdialog.py:1126
+#: qt/settingsdialog.py:1302
 msgid "Rename profile"
 msgstr "Preimenuj profil"
 
-#: qt/settingsdialog.py:1142
-#, fuzzy, python-brace-format
+#: qt/settingsdialog.py:1318
+#, python-brace-format
 msgid "Are you sure you want to delete the profile \"{name}\"?"
 msgstr "Da li ste sigurni da želite da uklonite profil \"{name}\" ?"
 
-#: qt/settingsdialog.py:1416
+#: qt/settingsdialog.py:1422
+#, python-brace-format
+msgid ""
+"{BOLD}Highly recommended{ENDBOLD}: (All recommendations already included.)"
+msgstr "{BOLD}Toplo preporučeno{ENDBOLD}: (Sve preporuke su već uključene.)"
+
+#: qt/settingsdialog.py:1427
+#, python-brace-format
+msgid "{BOLD}Highly recommended{ENDBOLD}: {files}"
+msgstr "{BOLD}Toplo preporučeno{ENDBOLD}: {files}"
+
+#: qt/settingsdialog.py:1634
 msgid ""
 "Custom hours can only be a comma separated list of hours (e.g. 8,12,18,23) "
 "or */3 for periodic backups every 3 hours."
 msgstr ""
+"Prilagođeni sati mogu biti samo lista sati razdvojena zarezima (npr. "
+"8,12,18,23) ili */3 za periodične sigurnosne kopije svakih 3 sata."
 
-#: qt/settingsdialog.py:1458
+#: qt/settingsdialog.py:1681
+msgid "You did not choose a private key file for SSH."
+msgstr "Niste izabrali datoteku privatnog ključa za SSH."
+
+#: qt/settingsdialog.py:1682
 msgid ""
-"You did not choose a private key file for SSH.\n"
 "Would you like to generate a new password-less public/private key pair?"
 msgstr ""
+"Da li želite da generišete novi par javnih/privatnih ključeva bez lozinke?"
 
-#: qt/settingsdialog.py:1469
+#: qt/settingsdialog.py:1692
 #, python-brace-format
 msgid "Private key file \"{file}\" does not exist."
-msgstr ""
+msgstr "Datoteka privatnog ključa u \"{file}\" ne postoji."
 
-#: qt/settingsdialog.py:1621
+#: qt/settingsdialog.py:1847
 msgid ""
-"Would you like to copy your public SSH key to the\n"
-"remote host to enable password-less login?"
+"Would you like to copy your public SSH key to the remote host to enable "
+"password-less login?"
 msgstr ""
+"Da li želite da kopirate vaš javni SSH ključ na udaljenom domaćinu za "
+"omogućavanje prijave bez lozinke?"
 
-#: qt/settingsdialog.py:1649
+#: qt/settingsdialog.py:1878
 #, python-brace-format
-msgid ""
-"The authenticity of host {host} can't be established.\n"
-"\n"
-"{keytype} key fingerprint is:"
-msgstr ""
+msgid "The authenticity of host {host} can't be established."
+msgstr "Autentičnost domaćine {host} se ne može utvrditi."
 
-#: qt/settingsdialog.py:1659
+#: qt/settingsdialog.py:1881
+#, python-brace-format
+msgid "{keytype} key fingerprint is:"
+msgstr "{keytype} otisak prsta ključa je:"
+
+#: qt/settingsdialog.py:1889
 msgid ""
-"Please verify this fingerprint! Would you like to add it to your "
+"Please verify this fingerprint. Would you like to add it to your "
 "'known_hosts' file?"
 msgstr ""
+"Molimo proverite ovaj otisak prsta! Da li želite da ga dodate u svoju "
+"datoteku 'known_hosts'?"
 
-#: qt/settingsdialog.py:1822
+#: qt/settingsdialog.py:2061
 msgid "Exclude pattern"
 msgstr "Izostavi šablon"
 
-#: qt/settingsdialog.py:1835
+#: qt/settingsdialog.py:2074
 msgid "Exclude file"
 msgstr "Izostavi fajl"
 
-#: qt/settingsdialog.py:1839
+#: qt/settingsdialog.py:2078
 msgid "Exclude folder"
 msgstr "Izostavi direktorijum"
 
-#: qt/settingsdialog.py:1863
+#: qt/settingsdialog.py:2102
 msgid "Include file"
 msgstr "Uključi fajl"
 
-#: qt/settingsdialog.py:1872 qt/settingsdialog.py:1902
+#: qt/settingsdialog.py:2111 qt/settingsdialog.py:2141
 #, python-brace-format
 msgid ""
 "\"{path}\" is a symlink. The linked target will not be backed up until you include it, too.\n"
 "Would you like to include the symlink target instead?"
 msgstr ""
+"\"{path}\" je simbolična veza. Povezana meta neće biti sigurnosno kopiran dok ga ne uključite.\n"
+"Da li želite da uključite metu simboličku veze?"
 
-#: qt/settingsdialog.py:1893
+#: qt/settingsdialog.py:2132
 msgid "Include folder"
 msgstr "Uključi direktorijum"
 
-#: qt/settingsdialog.py:1930
-#, fuzzy
+#: qt/settingsdialog.py:2169
 msgid "Are you sure you want to change snapshots folder?"
-msgstr "Da li stvarno želiš da promeniš direktorijum za snimkea?"
+msgstr "Da li stvarno želite da promenite direktorijum za snimke?"
 
-#: qt/settingsdialog.py:1955
+#: qt/settingsdialog.py:2194
 #, python-brace-format
-msgid "Failed to create new SSH key in {path}"
-msgstr ""
+msgid "Failed to create new SSH key in {path}."
+msgstr "Kreiranje novog SSH ključa u {path} nije uspelo."
 
-#: qt/settingsdialog.py:2014
-msgid "Full snapshot path: "
-msgstr ""
+#: qt/settingsdialog.py:2310
+msgid ""
+"Disabled because this pattern is not functional in mode 'SSH encrypted'."
+msgstr "Deaktivirano zato što šabloni ne funkcionišu u 'SSH šifrovanom' modu."
 
-#: qt/settingsdialog.py:2064
-msgid "enabled"
-msgstr ""
+#: qt/settingsdialog.py:2369
+msgid "(default: {})"
+msgstr "(podrazumevano: {})"
 
-#: qt/settingsdialog.py:2067
+#: qt/settingsdialog.py:2370
 msgid "disabled"
-msgstr ""
+msgstr "onemogućeno"
 
-#: qt/settingsdialog.py:2112
-msgid "Restore Settings"
-msgstr ""
+#: qt/settingsdialog.py:2370
+msgid "enabled"
+msgstr "omogućeno"
 
-#: qt/settingsdialog.py:2125
+#: qt/settingsdialog.py:2413
+msgid "Import configuration"
+msgstr "Uvezi sertifikat"
+
+#: qt/settingsdialog.py:2469 qt/settingsdialog.py:2565
+msgid "No config found"
+msgstr "Konfiguracije nije pronađena"
+
+#: qt/settingsdialog.py:2494
+msgid "Import"
+msgstr "Uvezi"
+
+#: qt/settingsdialog.py:2522
 #, python-brace-format
 msgid ""
-"Please navigate to the snapshot from which you want to restore {appName}'s configuration. The path may look like:\n"
-"{samplePath}\n"
-"\n"
-"If your snapshots are on a remote drive or if they are encrypted you need to manually mount them first. If you use Mode SSH you also may need to set up public key login to the remote host.\n"
-"Take a look at 'man backintime'."
+"Select the snapshot folder from which the configuration file should be "
+"imported. The path may look like: {samplePath}"
 msgstr ""
+"Odaberi folder za snimak iz koga konfiguracionu fajl treba da bude uvezen. "
+"Ova putanja može da izgleda kao: {samplePath}"
 
-#: qt/settingsdialog.py:2187 qt/settingsdialog.py:2252
-msgid "No config found"
+#: qt/settingsdialog.py:2527
+msgid ""
+"If the folder is located on an external or remote drive, it must be manually"
+" mounted beforehand."
 msgstr ""
-
-#: qt/settingsdialog.py:2459
-msgid "user-callback script has no shebang (#!/bin/sh) line."
-msgstr ""
-
-#: qt/settingsdialog.py:2466
-msgid "Shebang in user-callback script is not executable."
-msgstr ""
+"Ukoliko se datoteka nalazi na vanjskom ili udaljenom disku, unapred je "
+"potrebno ručno montira disk."
 
 #: qt/snapshotsdialog.py:51
 msgid "Options about comparing snapshots"
-msgstr ""
+msgstr "Opcije o upoređivanju snimaka"
 
 #: qt/snapshotsdialog.py:58
-#, fuzzy
-msgid "Command"
-msgstr "Naredba"
+msgid "Command:"
+msgstr "Komanda:"
 
 #: qt/snapshotsdialog.py:62
-#, fuzzy
-msgid "Parameters"
-msgstr "Parametri"
+msgid "Parameters:"
+msgstr "Parametri:"
 
-#: qt/snapshotsdialog.py:66
+#: qt/snapshotsdialog.py:67
 msgid "Use %1 and %2 for path parameters"
 msgstr "Користи %1 и %2 као параметре за путање"
 
-#: qt/snapshotsdialog.py:110
-msgid "Differing snapshots only"
+#: qt/snapshotsdialog.py:84
+msgid "Please set a diff command or press Cancel."
+msgstr "Molim postavite diff komandu ili pritisnite otkaži."
+
+#: qt/snapshotsdialog.py:90
+#, python-brace-format
+msgid ""
+"The command \"{cmd}\" cannot be found on this system. Please try something "
+"else or press Cancel."
 msgstr ""
+"Komanda \"{cmd}\" nije pronađena na ovom sistemu. Molimo probajte nešto "
+"drugo ili pritisnite otkaži."
 
-#: qt/snapshotsdialog.py:118
-msgid "List only equal snapshots to: "
-msgstr "Излистај само снимке једнаке следећим: "
+#: qt/snapshotsdialog.py:98
+#, python-brace-format
+msgid "No parameters set for the diff command. Using default value \"{params}\"."
+msgstr ""
+"Parametri nisu postavljeni za diff komandu. Koristiće se podrazumevane "
+"vrednosti \"{params}\"."
 
-#: qt/snapshotsdialog.py:129
+#: qt/snapshotsdialog.py:134
+msgid "Differing snapshots only"
+msgstr "Samo različiti snimci"
+
+#: qt/snapshotsdialog.py:142
+msgid "List only snapshots that are equal to:"
+msgstr "Излистај само снимке једнаке следећим:"
+
+#: qt/snapshotsdialog.py:153
 msgid "Deep check (more accurate, but slow)"
 msgstr "Дубока провера (прецизнија али спора)"
 
-#: qt/snapshotsdialog.py:150
+#: qt/snapshotsdialog.py:174
 msgid "Delete"
 msgstr "Избриши"
 
-#: qt/snapshotsdialog.py:154
+#: qt/snapshotsdialog.py:178
 msgid "Select All"
 msgstr "Одабери Све"
 
-#: qt/snapshotsdialog.py:167
+#: qt/snapshotsdialog.py:191
 msgid "Compare"
-msgstr ""
+msgstr "Uporedi"
 
-#: qt/snapshotsdialog.py:178
+#: qt/snapshotsdialog.py:203
 msgid "Go To"
 msgstr "Иди На"
 
-#: qt/snapshotsdialog.py:179
-#, fuzzy
+#: qt/snapshotsdialog.py:204
 msgid "Options"
 msgstr "Opcije"
 
-#: qt/snapshotsdialog.py:330
-#, fuzzy
+#: qt/snapshotsdialog.py:355
 msgid "You can't compare a snapshot to itself."
-msgstr "Није могуће упоредити снимак са самим собом."
+msgstr "Nije moguće uporediti snimak sa samim sobom."
 
-#: qt/snapshotsdialog.py:338
-#, fuzzy
-msgid "Command not found"
-msgstr "Naredba nije pronađena"
-
-#: qt/snapshotsdialog.py:369
-#, fuzzy, python-brace-format
+#: qt/snapshotsdialog.py:398
+#, python-brace-format
 msgid "Do you really want to delete {file} in snapshot {snapshot_id}?"
-msgstr "Неуспешно чување снимка {snapshot_id} !!!"
+msgstr "Da li stvarno želite da izbrišete {file} u snimku {snapshot_id}?"
 
-#: qt/snapshotsdialog.py:375
+#: qt/snapshotsdialog.py:404
 #, python-brace-format
 msgid "Do you really want to delete {file} in {count} snapshots?"
-msgstr ""
+msgstr "Da li stvarno želite da izbrišete {file} u {count} snimka?"
 
-#: qt/snapshotsdialog.py:380
-msgid "This cannot be revoked!"
-msgstr ""
+#: qt/snapshotsdialog.py:408
+msgid "WARNING: This cannot be revoked."
+msgstr "Upozorenja: Ovo se ne može opožvati."
 
-#: qt/snapshotsdialog.py:380
-msgid "WARNING"
-msgstr ""
-
-#: qt/snapshotsdialog.py:396
+#: qt/snapshotsdialog.py:426
 #, python-brace-format
 msgid "Exclude {path} from future snapshots?"
-msgstr ""
-
-#~ msgid "&Snapshot"
-#~ msgstr "Снимак"
-
-#~ msgid "&View"
-#~ msgstr "Приказ"
-
-#~ msgid "..."
-#~ msgstr "..."
-
-#~ msgid "Changes & Errors"
-#~ msgstr "Izmene i greške"
-
-#~ msgid "Config File Help"
-#~ msgstr "Помоћ са конфигурационим фајлом"
-
-#~ msgid "Diff"
-#~ msgstr "Diff"
-
-#~ msgid "Diff Options"
-#~ msgstr "Diff Опције"
-
-#~ msgid "Error:"
-#~ msgstr "Greška:"
-
-#~ msgid "Every 10 minutes"
-#~ msgstr "Svakih 10 minuta"
-
-#~ msgid "Every 5 minutes"
-#~ msgstr "Svakih 5 minuta"
-
-#~ msgid "List only different snapshots"
-#~ msgstr "Izlistaj samo različite snimke"
-
-#~ msgid "Local encrypted"
-#~ msgstr "Локално енкриптован"
-
-#, fuzzy, python-brace-format
-#~ msgid "Profile: {name}"
-#~ msgstr "Profil: \"{name}\""
-
-#~ msgid "SSH"
-#~ msgstr "SSH"
-
-#~ msgid "Settings"
-#~ msgstr "Подешавања"
-
-#, python-format
-#~ msgid "Snapshot: %s"
-#~ msgstr "Snimak: %s"
+msgstr "Isključi {path} iz budućih snimaka?"
 
 #, fuzzy
-#~ msgid "View the current disk contents"
-#~ msgstr "Pogledaj trenutni sadržaj diska"
+#~ msgid ""
+#~ "Can't find crontab. Are you sure cron is installed? If not you should "
+#~ "disable all automatic backups."
+#~ msgstr ""
+#~ "Ne mogu da pronađem crontab.\n"
+#~ "Da li ste sigurni da je crontab inastaliran?\n"
+#~ "Ako nije, treba da onemogućite automatsko kreiranje rezervnih kopija."
 
-#, fuzzy, python-brace-format
-#~ msgid "View the snapshot made at {timestamp}"
-#~ msgstr "Pogledaj snimak načinjen {timestamp}"
+#~ msgid "Full snapshot path"
+#~ msgstr "Puna putanja snimka"
 
-#~ msgid "WITH ERRORS !"
-#~ msgstr "SA GREŠKAMA !"
+#~ msgid "Mode"
+#~ msgstr "Mod"
 
-#~ msgid "Working..."
-#~ msgstr "Radim..."
+#~ msgid "Profile"
+#~ msgstr "Profil"
 
-#, fuzzy
-#~ msgid "You can't include backup folder!"
-#~ msgstr "Nije moguće uključiti direktorijum za rezervne kopije!"
+#, python-brace-format
+#~ msgid "Profile '{profile}': Enter password for {mode}: "
+#~ msgstr "Профил '{profile}': Унесите лозинку за {mode}: "
 
-#, fuzzy
-#~ msgid "You can't include backup sub-folder!"
-#~ msgstr "Nije moguće uključiti poddirektorijum za rezervne kopije!"
+#~ msgid "Shebang in user-callback script is not executable."
+#~ msgstr "Shebang u user-callback skripti nije izvršan."
 
-#~ msgid "You can't remove the last profile!"
-#~ msgstr "Није могуће уклонити последњи профил!"
+#~ msgid "WARNING"
+#~ msgstr "UPOZORENJE"
+
+#~ msgid ""
+#~ "encfs version 1.7.2 and before has a bug with option --reverse. Please "
+#~ "update encfs."
+#~ msgstr ""
+#~ "u encfs verzijama 1.7.2 i ranije postoji greška kod opcije --reverse. Molim "
+#~ "vas ažurirajte encfs."
+
+#~ msgid "user-callback script has no shebang (#!/bin/sh) line."
+#~ msgstr "user-callback skripte ne sadrži shebang (#!/bin/sh) liniju."
+
+#, python-brace-format
+#~ msgid ""
+#~ "{app} uses EncFS for encryption. A recent security audit revealed several "
+#~ "possible attack vectors for this. Please take a look at \"A NOTE ON "
+#~ "SECURITY\" in \"man backintime\"."
+#~ msgstr ""
+#~ "{app} koristi EncFS za enkripciju. Nedavna sigurnosna revizija otkrila je "
+#~ "nekoliko mogućih vektora napada za ovo. Molimo pogledajte \"A NOT ON "
+#~ "SECURITY\" u \"man backintime\"."

@@ -65,10 +65,13 @@ request is accepted.
 
 - Follow [PEP 8](https://peps.python.org/pep-0008/) as a minimal Style Guide
   for Python Code.
+- Prefer _single quotes_ (e.g. `'Hello World'`) over _double qutoes_
+  (e.g. `"Hello World"`). Exceptions are when single quotes contained in the
+  string (e.g. `"Can't unmount"`).
 - For docstrings follow [Google Style Guide](https://sphinxcontrib-napoleon.readthedocs.org/en/latest/example_google.html) 
   (see our own [HOWTO about doc generation](common/doc-dev/1_doc_maintenance_howto.md)).
-- Be careful when using automatic formatters like `black` and please mention
-  the use of it when opening a pull request.
+- Avoid the use of automatic formatters like `black` but mention the use of
+  them when opening a pull request.
 - Run unit tests before you open a Pull Request. You can run them via
   `make`-system with `cd common && ./configure && make && make test` or using a
   regular unittest runner of your choice (e.g. `pytest`). See section
@@ -85,7 +88,6 @@ request is accepted.
 - [Source code documentation for developers](https://backintime-dev.readthedocs.org)
 - [Translations](https://translate.codeberg.org/engage/backintime) are done on a separate platform.
 - [HowTo's and maintenance](common/doc-dev/README.md)
-
 - [contribution-guide.org](https://www.contribution-guide.org)
 - [How to submit a contribution (opensource.guide)](https://opensource.guide/how-to-contribute/#how-to-submit-a-contribution)
 - [mozillascience.github.io/working-open-workshop/contributing](https://mozillascience.github.io/working-open-workshop/contributing)
@@ -102,27 +104,27 @@ first.
 The following dependencies are based on Ubuntu. Please [open an
 Issue](https://github.com/bit-team/backintime/issues/new/choose) if something
 is missing. If you use another GNU/Linux distribution, please install the
-corresponding packages. Be aware that some of the named packages can be
-replaced with PyPi packages.
+corresponding packages. Even if some packages are available from PyPi stick to
+the packages provided by the official repository of your GNU/Linux distribution.
 
 * Runtime dependencies for the CLI
 
-  - `python3` (>= 3.8)
+  - `python3` (>= 3.9)
   - `rsync`
   - `cron-daemon`
   - `openssh-client`
+  - `sshfs`
   - `python3-keyring`
   - `python3-dbus`
   - `python3-packaging`
   -  Recommended
-     - `sshfs`
      - `encfs`
 
 * Runtime dependencies for the GUI
 
   - `x11-utils`
-  - `python3-pyqt6`
-  - `python3-dbus.mainloop.pyqt6`
+  - `python3-pyqt6` (not from _PyPi_ via `pip`)
+  - `python3-dbus.mainloop.pyqt6` (not available from _PyPi_ via `pip`)
   - `libnotify-bin`
   - `policykit-1`
   - `qttranslations6-l10n`
@@ -151,6 +153,9 @@ replaced with PyPi packages.
 
 ## Build and install via `make` system (recommended)
 
+> [!IMPORTANT]
+> Install [Dependencies](#dependencies) before you build and install.
+
 Remember that _Back In Time_ does consist of two packages, which must be built
 and installed separately accordingly.
 
@@ -169,18 +174,12 @@ and installed separately accordingly.
 You can use optional arguments to `./configure` for creating a Makefile.
 See `common/configure --help` and `qt/configure --help` for details.
 
-## Build own `deb` file
-
-1. Run `./makedeb.sh` in the repositories root directory.
-2. Two `deb` files are built and places in the repositories parent directory.
-3. Install the packages
-  - `sudo dpkg -i ../backintime-common-<version>.deb`
-  - `sudo dpkg -i ../backintime-qt-<version>.deb`
-
 # Testing
 > [!IMPORTANT]
 > Remember to **manually** test _Back In Time_ and not rely solely on
-> the automatic test suite.
+> the automatic test suite. See section
+> [Manual testing](common/doc-dev/BiT_release_process.md#manual-testing---recommendations)
+> about recommendations how to perform such tests.
 
 After [building and installing](#build--install), `make` can be used to run the
 test suite. Since _Back In Time_ consists of two components, `common` and `qt`,
@@ -237,10 +236,10 @@ request.
 Depending on the topic or impact of the PR, the maintainer may decide
 that an approval from a second maintainer is needed. This may result in
 additional waiting time. Please remain patient. In such cases, the PR will be
-labelled
+labeled
 [PR: Waiting for review](https://github.com/bit-team/backintime/labels/PR%3A%20Waiting%20for%20review). 
 
-If no second approval is necessary, the PR is labelled
+If no second approval is necessary, the PR is labeled
 [PR: Merge after creative-break](https://github.com/bit-team/backintime/labels/PR%3A%20Merge%20after%20creative-break)
 and will remain open for minimum of one week. This rule allows all maintainers
 the chance to review and potentially veto the pull request.
@@ -286,6 +285,7 @@ The codebase does not adhere to [PEP8](https://peps.python.org/pep-0008/),
 which serves as the minimum Python coding style. Utilizing linters in their
 default configuration is currently not feasible. One of our objectives is to
 align with PEP8 standards and meet the requirements of code linters.
+See [Issue #1755](https://github.com/bit-team/backintime/issues/1755) about it.
 
 ## Issues
 
@@ -307,6 +307,8 @@ replacing it, with [GoCryptFS](https://github.com/rfjakob/gocryptfs) as a
 potential candidate. However, lack of resources hinders this effort. If no
 volunteers step forward, the encryption feature will be removed, prioritizing
 user security and team maintenance efforts.
+See [Issue #1734](https://github.com/bit-team/backintime/issues/1734) about the
+transition process and the discussion about alternatives to EncFS.
 
 Besides replacing EncFS there is also a
 [discussion](https://mail.python.org/archives/list/bit-dev@python.org/thread/D2GXCCVUAVZ2E5ELBHUZGT7ITUN4ADEP)
@@ -346,4 +348,4 @@ Keep in mind as you contribute, that code, docs and other material submitted to
 the project are considered licensed under the same terms (see
 [LICENSE](LICENSE)) as the rest of the work.
 
-<sub>May 2024</sub>
+<sub>July 2024</sub>

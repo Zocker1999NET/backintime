@@ -14,6 +14,7 @@ common
    diagnostics
    encfstools
    exceptions
+   flock
    guiapplicationinstance
    logger
    mount
@@ -21,6 +22,7 @@ common
    password_ipc
    pluginmanager
    progress
+   schedule
    snapshotlog
    snapshots
    sshMaxArg

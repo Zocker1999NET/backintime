@@ -9,11 +9,10 @@ ON_TRAVIS = os.environ.get('TRAVIS', '') == 'true'
 PYLINT_AVIALBE = not shutil.which('pylint') is None
 PYLINT_REASON = ('Using PyLint is mandatory on TravisCI, on other systems'
                  'it runs only if `pylint` is available.')
-ON_TRAVIS_PPC64LE = os.environ.get('TRAVIS_ARCH', '') == 'ppc64le'
 
 
 class MirrorMirrorOnTheWall(unittest.TestCase):
-    """Check all py-files in the package (incl. test files) for lints and
+    """Check all py-files in the package (incl. test files) for lints,
     potential bugs and if they are compliant to the coding styles (e.g. PEP8).
     """
 
@@ -31,7 +30,7 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
 
         if not path.name.startswith('test'):
             raise RuntimeError('Something went wrong. The test should run '
-                               'inside the test folder but current folder '
+                               'inside the test folder but the current folder '
                                f'is {path}.')
 
         # Workaround
@@ -46,7 +45,7 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
 
         Some facts about PyLint
          - It is one of the slowest available linters.
-         - It is able to catch lints none of the other linters
+         - It is able to catch lints other linters miss.
         """
 
         # Pylint base command
@@ -77,47 +76,48 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
 
         # Explicit activate checks
         err_codes = [
+            'C0305',  # trailing-newlines
+            'C0325',  # superfluous-parens
+            'C0410',  # multiple-imports
+            'C0303',  # trailing-whitespace
+            'E0100',  # init-is-generator
+            'E0101',  # return-in-init
+            'E0102',  # function-redefined
+            'E0103',  # not-in-loop
+            'E0106',  # return-arg-in-generator
+            'E0213',  # no-self-argument
             'E0401',  # import-error
             'E0602',  # undefined-variable
             'E1101',  # no-member
-            # 'W0611',  # unused-import
+            'I0021',  # useless-suppression
+            'W0123',  # eval-used
+            'W0237',  # arguments-renamed
+            'W0311',  # bad-indentation
+            'W0404',  # reimported
+            'W0611',  # unused-import
+            # 'W0612',  # unused-variable
+            'W0614',  # unused-wildcard-import
+            'W0707',  # raise-missing-from
             'W1301',  # unused-format-string-key
             'W1401',  # anomalous-backslash-in-string (invalid escape sequence)
-            'I0021',  # useless-suppression
+            'W1515',  # forgotten-debug-statement
+            'W4902',  # deprecated-method
+            'W4904',  # deprecated-class
+            'R0201',  # no-self-use
+            'R0202',  # no-classmethod-decorator
+            'R0203',  # no-staticmethod-decorator
 
-            # Enable asap. This list is selection of existing (not all!)
-            # problems currently exiting in the BIT code base. Quit easy to fix
-            # because there count is low.
-            # 'C0303',  # trailing-whitespace
-            # 'C0305',  # trailing-newlines
-            # 'C0324',  # superfluous-parens
-            # 'C0410',  # multiple-imports
-            # 'E0213',  # no-self-argument
-            # 'R0201',  # no-self-use
-            # 'R0202',  # no-classmethod-decorator
-            # 'R0203',  # no-staticmethod-decorator
+            # Enable asap. This list is a selection of existing (not all!)
+            # problems currently existing in the BIT code base. Quite easy to fix
+            # because their count is low.
             # 'R0801',  # duplicate-code
-            # 'W0123',  # eval-used
-            # 'W0237',  # arguments-renamed
             # 'W0221',  # arguments-differ
-            # 'W0311',  # bad-indentation
-            # 'W0404',  # reimported
-            # 'W4902',  # deprecated-method
-            # 'W4904',  # deprecated-class
             # 'W0603',  # global-statement
-            # 'W0614',  # unused-wildcard-import
-            # 'W0612',  # unused-variable
-            # 'W0707',  # raise-missing-from
         ]
-
-        if ON_TRAVIS_PPC64LE:
-            # Because of missing PyQt6 on ppc64le architecture
-            err_codes.remove('I0021')
-            err_codes.remove('E0401')
 
         cmd.append('--enable=' + ','.join(err_codes))
 
-        # Add py files
+        # Add py-files
         cmd.extend(self._collect_py_files())
 
         r = subprocess.run(

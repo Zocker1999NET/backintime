@@ -96,7 +96,7 @@ def can_render(string, widget):
         widget(QWidget): The widget which font is used.
 
     Returns:
-        (bool) True if the widgets font contain all givin characters.
+        (bool) True if the widgets font contain all given characters.
     """
     fm = widget.fontMetrics()
 
@@ -132,7 +132,9 @@ def set_wrapped_tooltip(widget: QWidget,
 
     result = []
     for paragraph in tooltip:
-        result.append('\n'.join(textwrap.wrap(paragraph, wrap_length)))
+        result.append('\n'.join(
+            textwrap.wrap(paragraph, wrap_length)
+        ))
 
     widget.setToolTip('\n'.join(result))
 
@@ -366,6 +368,8 @@ def initiate_translator(language_code: str) -> QTranslator:
             'PyQt was not able to install a translator for language code '
             f'"{language_code}". Deactivate translation and falling back to '
             'the source language (English).')
+
+    tools.set_lc_time_by_language_code(language_code)
 
     return translator
 
@@ -699,4 +703,3 @@ class ProfileCombo(SortedComboBox):
             if self.itemData(i) == profileID:
                 self.setCurrentIndex(i)
                 break
-

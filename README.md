@@ -1,5 +1,4 @@
 [![Build Status](https://app.travis-ci.com/bit-team/backintime.svg)](https://app.travis-ci.com/bit-team/backintime)
-[![Coverage Status](https://coveralls.io/repos/github/bit-team/backintime/badge.svg?branch=main)](https://coveralls.io/github/bit-team/backintime?branch=main)
 [![Source code documentation Status](https://readthedocs.org/projects/backintime-dev/badge/?version=latest)](https://backintime-dev.readthedocs.io)
 [![Translation status](https://translate.codeberg.org/widget/backintime/common/svg-badge.svg)](https://translate.codeberg.org/engage/backintime)
 
@@ -9,8 +8,8 @@ Germar Reitze, Taylor Raack</sub><br />
 <sub>Copyright (C) 2022 Christian Buhtz, Michael Büker, Jürgen Altfeld</sub>
  
 _Back In Time_ is an easy-to-use tool to backup files and folders.
-It runs on GNU Linux (not on Windows or OS X/macOS) and provides a command line tool `backintime` and a
-GUI `backintime-qt` both written in Python3. It uses 
+It runs on GNU/Linux (not on Windows or OS X/macOS) and provides a command line
+tool `backintime` and a GUI `backintime-qt` both written in Python3. It uses 
 [`rsync`](https://rsync.samba.org/) to take manual or scheduled snapshots and
 stores them locally or remotely through SSH. Each snapshot is in its own folder
 with copies of the original files, but unchanged files are hard-linked between
@@ -19,7 +18,7 @@ It was inspired by [FlyBack](https://en.wikipedia.org/wiki/FlyBack).
 
 ## Maintenance status
 
-The project is in active developement since the [new team](#the-team) joined in
+The project is in active development since the [new team](#the-team) joined in
 summer 2022. Development is done in spare time so things need to be
 prioritized. Stick with us, we all ♥️ _Back In Time_. 😁
 
@@ -35,11 +34,12 @@ those labeled as [good first issues](https://github.com/bit-team/backintime/labe
 and [help wanted](https://github.com/bit-team/backintime/issues?q=is%3Aissue+is%3Aopen+label%3AHELP-WANTED).
 
 ## The team
-The current team started in summer of 2022 (with #1232) and constitutes the
-project's 3rd generation of maintainers. Consisting of three members with
-diverse backgrounds (@aryoda, @buhtz, @emtiu), the team benefits from the
-assistance of the former maintainer, @Germar, who contributes from behind the
-scenes.
+The current team started in summer of 2022
+(with [#1232](https://github.com/bit-team/backintime/issues/1232)) and
+constitutes the project's 3rd generation of maintainers. Consisting of three
+members with diverse backgrounds (@aryoda, @buhtz, @emtiu), the team benefits
+from the assistance of the former maintainer, @Germar, who contributes from
+behind the scenes.
 
 All team members are engaged in every aspect of the project, including code
 analysis, documentation, solving issues, and the implementation of new
@@ -83,14 +83,13 @@ installation options provided and maintained by third parties.
 
 In the latest stable release:
 - [File permissions handling and therefore possible non-differential backups](#file-permissions-handling-and-therefore-possible-non-differential-backups)
-- [`qt5_probing.py` may hang with high CPU usage when running BiT as `root` via `cron`](#qt5_probingpy-may-hang-with-high-cpu-usage-when-running-bit-as-root-via-cron)
+- [`qt_probing.py` may hang with high CPU usage when running BiT as `root` via `cron`](#qt_probingpy-may-hang-with-high-cpu-usage-when-running-bit-as-root-via-cron)
 
 In older releases:
-- RTE "module 'qttools' has no attribute 'initate_translator'" with encFS when prompting the user for a password ([#1553](https://github.com/bit-team/backintime/issues/#1553))
+- Error: "module 'qttools' has no attribute 'initate_translator'" with EncFS when prompting the user for a password ([#1553](https://github.com/bit-team/backintime/issues/1553))
 - [Tray icon or other icons not shown correctly](#tray-icon-or-other-icons-not-shown-correctly)
 - [Non-working password safe and BiT forgets passwords (keyring backend issues)](#non-working-password-safe-and-bit-forgets-passwords-keyring-backend-issues)
 - [Incompatibility with rsync >= 3.2.4](#incompatibility-with-rsync-324-or-newer)
-- [Python 3.10 compatibility and Ubuntu version](#python-310-compatibility-and-ubuntu-version)
 
 More problems described in
 [this FAQ section](FAQ.md#problems-errors--solutions).
@@ -113,14 +112,14 @@ to add `--no-perms --no-group --no-owner` to it.
 Note that the exact file permissions can still be found in `fileinfo.bz2` and are also considered when restoring
 files.
 
-### `qt5_probing.py` may hang with high CPU usage when running BiT as `root` via `cron`
+### `qt_probing.py` may hang with high CPU usage when running BiT as `root` via `cron`
 
 See the related issue [#1592](https://github.com/bit-team/backintime/issues/1592).
 
 The only reliable work-around is to delete (or move into another folder)
-the file `/usr/share/backintime/common/qt5_probing.py`:
+the file `/usr/share/backintime/common/qt_probing.py`:
 
-`mv /usr/share/backintime/common/qt5_probing.py /usr/share/backintime/`
+`mv /usr/share/backintime/common/qt_probing.py /usr/share/backintime/`
 
 Renaming does *not* work!
 
@@ -192,16 +191,8 @@ Note that some GNU/Linux distributions (e.g. Manjaro) using a workaround with
 environment variable `RSYNC_OLD_ARGS` in their distro-specific packages for
 _Back In Time_. In that case you may not see any problems.
 
-### Python 3.10 compatibility and Ubuntu version
-
-_Back In Time_ versions older than 1.3.2 do not start with Python >= 3.10.
-Ubuntu 22.04 LTS ships with Python 3.10 and backintime 1.2.1, but has applied
-[a patch](https://bugs.launchpad.net/ubuntu/+source/backintime/+bug/1976164/+attachment/5593556/+files/backintime_1.2.1-3_1.2.1-3ubuntu0.1.diff)
-to make it work. If you want to update _Back In Time_, you may use one of the
-[alternative options for installation](#alternative-installation-options).
-
 # Contributing and other ways to support the project
 See [CONTRIBUTING](CONTRIBUTING.md) file for an overview about the projects
 workflow and strategy.
 
-<sub>May 2024</sub>
+<sub>July 2024</sub>

@@ -1,22 +1,20 @@
-#    Back In Time
-#    Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey,
-#                            Germar Reitze, Taylor Raack
+# Back In Time
+# Copyright (C) 2008-2022 Oprea Dan, Bart de Koning, Richard Bailey,
+#                         Germar Reitze, Taylor Raack
 #
-#    This program is free software; you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation; either version 2 of the License, or
-#    (at your option) any later version.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License along
-#    with this program; if not, write to the Free Software Foundation, Inc.,
-#    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-
-
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import os
 import datetime
 import copy
@@ -27,6 +25,7 @@ from PyQt6.QtGui import (QIcon,
                          QPalette,
                          QBrush,
                          QColor,
+                         QCursor,
                          QFileSystemModel)
 from PyQt6.QtWidgets import (QDialog,
                              QVBoxLayout,
@@ -53,13 +52,13 @@ from PyQt6.QtWidgets import (QDialog,
                              QCheckBox,
                              QMenu,
                              QProgressBar,
-                             QPlainTextEdit)
+                             QPlainTextEdit,
+                             QToolTip)
 from PyQt6.QtCore import (Qt,
                           QDir,
                           QSortFilterProxyModel,
                           QThread,
-                          pyqtSignal,
-                          pyqtRemoveInputHook)
+                          pyqtSignal)
 
 import config
 import tools
@@ -69,7 +68,9 @@ import messagebox
 import snapshots
 import sshtools
 import logger
+import encfsmsgbox
 from exceptions import MountException, NoPubKeyLogin, KnownHost
+from bitbase import URL_ENCRYPT_TRANSITION
 
 
 class SshProxyWidget(QWidget):
@@ -85,13 +86,16 @@ class SshProxyWidget(QWidget):
             port = ''
             user = ''
 
+        elif isinstance(port, int):
+            port = str(port)
+
         vlayout = QVBoxLayout(self)
         # zero margins
         vlayout.setContentsMargins(0, 0, 0, 0)
 
-        checkbox = QCheckBox(_('SSH Proxy'), self)
-        vlayout.addWidget(checkbox)
-        checkbox.stateChanged.connect(self._slot_checkbox_changed)
+        self._checkbox = QCheckBox(_('SSH Proxy'), self)
+        vlayout.addWidget(self._checkbox)
+        self._checkbox.stateChanged.connect(self._slot_checkbox_changed)
 
         hlayout = QHBoxLayout()
         vlayout.addLayout(hlayout)
@@ -113,9 +117,10 @@ class SshProxyWidget(QWidget):
 
         qttools.set_wrapped_tooltip(
             self,
-            'Connect to the target host via this proxy (also known as a jump '
-            'host). See "-J" in the "ssh" command documentation or '
-            '"ProxyJump" in "ssh_config" man page for details.')
+            _('Connect to the target host via this proxy (also known as a '
+              'jump host). See "-J" in the "ssh" command documentation or '
+              '"ProxyJump" in "ssh_config" man page for details.')
+        )
 
     def _slot_checkbox_changed(self, state):
         if Qt.CheckState(state) == Qt.CheckState.Checked:
@@ -124,6 +129,7 @@ class SshProxyWidget(QWidget):
             self._disable()
 
     def _set_default(self):
+        """Set GUI elements back to default."""
         self.host_edit.setText('')
         self.port_edit.setText('22')
         self.user_edit.setText(getpass.getuser())
@@ -139,11 +145,19 @@ class SshProxyWidget(QWidget):
             lay.itemAt(idx).widget().setEnabled(enable)
 
     def values(self):
-        return {
-            'host': self.host_edit.text(),
-            'port': self.port_edit.text(),
-            'user': self.user_edit.text(),
-        }
+        if self._checkbox.isChecked():
+            return {
+                'host': self.host_edit.text(),
+                'port': self.port_edit.text(),
+                'user': self.user_edit.text(),
+            }
+
+        else:
+            return {
+                'host': '',
+                'port': '',
+                'user': '',
+            }
 
 
 class SettingsDialog(QDialog):
@@ -170,7 +184,7 @@ class SettingsDialog(QDialog):
         layout = QHBoxLayout()
         self.mainLayout.addLayout(layout)
 
-        layout.addWidget(QLabel(_('Profile') + ':', self))
+        layout.addWidget(QLabel(_('Profile:'), self))
 
         self.firstUpdateAll = True
         self.disableProfileChanged = True
@@ -212,7 +226,7 @@ class SettingsDialog(QDialog):
         vlayout = QVBoxLayout()
         layout.addLayout(vlayout)
 
-        self.lblModes = QLabel(_('Mode') + ':', self)
+        self.lblModes = QLabel(_('Mode:'), self)
 
         self.comboModes = QComboBox(self)
         hlayout = QHBoxLayout()
@@ -224,15 +238,8 @@ class SettingsDialog(QDialog):
             store_modes[key] = self.config.SNAPSHOT_MODES[key][1]
         self.fillCombo(self.comboModes, store_modes)
 
-        # encfs security warning
-        self.encfsWarning = QLabel('<b>{}:</b> {}'.format(
-            _('Warning'),
-            _('{app} uses EncFS for encryption. A recent security audit '
-              'revealed several possible attack vectors for this. Please '
-              'take a look at "A NOTE ON SECURITY" in "man backintime".')
-            .format(app=self.config.APP_NAME)
-        ))
-        self.encfsWarning.setWordWrap(True)
+        # EncFS deprecation (#1734, #1735)
+        self.encfsWarning = self._create_label_encfs_deprecation()
         layout.addWidget(self.encfsWarning)
 
         # Where to save snapshots
@@ -274,34 +281,34 @@ class SettingsDialog(QDialog):
         hlayout3 = QHBoxLayout()
         vlayout.addLayout(hlayout3)
 
-        self.lblSshHost = QLabel(_('Host') + ':', self)
+        self.lblSshHost = QLabel(_('Host:'), self)
         hlayout1.addWidget(self.lblSshHost)
         self.txtSshHost = QLineEdit(self)
         hlayout1.addWidget(self.txtSshHost)
 
-        self.lblSshPort = QLabel(_('Port') + ':', self)
+        self.lblSshPort = QLabel(_('Port:'), self)
         hlayout1.addWidget(self.lblSshPort)
         self.txtSshPort = QLineEdit(self)
         hlayout1.addWidget(self.txtSshPort)
 
-        self.lblSshUser = QLabel(_('User') + ':', self)
+        self.lblSshUser = QLabel(_('User:'), self)
         hlayout1.addWidget(self.lblSshUser)
         self.txtSshUser = QLineEdit(self)
         hlayout1.addWidget(self.txtSshUser)
 
-        self.lblSshPath = QLabel(_('Path') + ':', self)
+        self.lblSshPath = QLabel(_('Path:'), self)
         hlayout2.addWidget(self.lblSshPath)
         self.txtSshPath = QLineEdit(self)
         self.txtSshPath.textChanged.connect(self.fullPathChanged)
         hlayout2.addWidget(self.txtSshPath)
 
-        self.lblSshCipher = QLabel(_('Cipher') + ':', self)
+        self.lblSshCipher = QLabel(_('Cipher:'), self)
         hlayout3.addWidget(self.lblSshCipher)
         self.comboSshCipher = QComboBox(self)
         hlayout3.addWidget(self.comboSshCipher)
         self.fillCombo(self.comboSshCipher, self.config.SSH_CIPHERS)
 
-        self.lblSshPrivateKeyFile = QLabel(_('Private Key') + ':', self)
+        self.lblSshPrivateKeyFile = QLabel(_('Private Key:'), self)
         hlayout3.addWidget(self.lblSshPrivateKeyFile)
         self.txtSshPrivateKeyFile = QLineEdit(self)
         self.txtSshPrivateKeyFile.setReadOnly(True)
@@ -320,9 +327,11 @@ class SettingsDialog(QDialog):
         self.btnSshKeyGen = QToolButton(self)
         self.btnSshKeyGen.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
         self.btnSshKeyGen.setIcon(icon.ADD)
-        self.btnSshKeyGen.setToolTip(
+        qttools.set_wrapped_tooltip(
+            self.btnSshKeyGen,
             _('Create a new SSH key without password (not allowed if a '
-              'private key file is already selected)'))
+              'private key file is already selected).')
+        )
         self.btnSshKeyGen.setMinimumSize(32, 28)
         hlayout3.addWidget(self.btnSshKeyGen)
         self.btnSshKeyGen.clicked.connect(self.btnSshKeyGenClicked)
@@ -402,25 +411,25 @@ class SettingsDialog(QDialog):
         hlayout2 = QHBoxLayout()
         vlayout2.addLayout(hlayout2)
 
-        self.lblHost = QLabel(_('Host') + ':', self)
+        self.lblHost = QLabel(_('Host:'), self)
         hlayout2.addWidget(self.lblHost)
         self.txtHost = QLineEdit(self)
         self.txtHost.textChanged.connect(self.fullPathChanged)
         hlayout2.addWidget(self.txtHost)
 
-        self.lblUser = QLabel(_('User') + ':', self)
+        self.lblUser = QLabel(_('User:'), self)
         hlayout2.addWidget(self.lblUser)
         self.txtUser = QLineEdit(self)
         self.txtUser.textChanged.connect(self.fullPathChanged)
         hlayout2.addWidget(self.txtUser)
 
-        self.lblProfile = QLabel(_('Profile') + ':', self)
+        self.lblProfile = QLabel(_('Profile:'), self)
         hlayout2.addWidget(self.lblProfile)
         self.txt_profile = QLineEdit(self)
         self.txt_profile.textChanged.connect(self.fullPathChanged)
         hlayout2.addWidget(self.txt_profile)
 
-        self.lblFullPath = QLabel(_('Full snapshot path') + ': ', self)
+        self.lblFullPath = QLabel(_('Full snapshot path:'), self)
         self.lblFullPath.setWordWrap(True)
         vlayout2.addWidget(self.lblFullPath)
 
@@ -447,7 +456,8 @@ class SettingsDialog(QDialog):
                 'Every {n} minute', 'Every {n} minutes', 10).format(n=10),
             config.Config._30_MIN: ngettext(
                 'Every {n} minute', 'Every {n} minutes', 30).format(n=30),
-            config.Config._1_HOUR: _('Every hour'),
+            config.Config._1_HOUR: ngettext(
+                'Every hour', 'Every {n} hours', 1).format(n=1),
             config.Config._2_HOURS: ngettext(
                 'Every {n} hour', 'Every {n} hours', 2).format(n=2),
             config.Config._4_HOURS: ngettext(
@@ -467,7 +477,7 @@ class SettingsDialog(QDialog):
 
         self.fillCombo(self.comboSchedule, schedule_modes_dict)
 
-        self.lblScheduleDay = QLabel(_('Day') + ':', self)
+        self.lblScheduleDay = QLabel(_('Day:'), self)
         self.lblScheduleDay.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleDay.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleDay, 1, 0)
@@ -478,7 +488,7 @@ class SettingsDialog(QDialog):
         for d in range(1, 29):
             self.comboScheduleDay.addItem(QIcon(), str(d), d)
 
-        self.lblScheduleWeekday = QLabel(_('Weekday') + ':', self)
+        self.lblScheduleWeekday = QLabel(_('Weekday:'), self)
         self.lblScheduleWeekday.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleWeekday.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleWeekday, 2, 0)
@@ -486,14 +496,15 @@ class SettingsDialog(QDialog):
         self.comboScheduleWeekday = QComboBox(self)
         glayout.addWidget(self.comboScheduleWeekday, 2, 1)
 
+        sunday = datetime.date(2011, 11, 6)
         for d in range(1, 8):
             self.comboScheduleWeekday.addItem(
                 QIcon(),
-                datetime.date(2011, 11, 6 + d).strftime("%A"),
+                (sunday + datetime.timedelta(days=d)).strftime('%A'),
                 d
             )
 
-        self.lblScheduleTime = QLabel(_('Hour') + ':', self)
+        self.lblScheduleTime = QLabel(_('Hour:'), self)
         self.lblScheduleTime.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleTime.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         glayout.addWidget(self.lblScheduleTime, 3, 0)
@@ -508,7 +519,7 @@ class SettingsDialog(QDialog):
                 t
             )
 
-        self.lblScheduleCronPatern = QLabel(_('Hours') + ':', self)
+        self.lblScheduleCronPatern = QLabel(_('Hours:'), self)
         self.lblScheduleCronPatern.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleCronPatern.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -526,7 +537,7 @@ class SettingsDialog(QDialog):
         self.lblScheduleRepeated.setWordWrap(True)
         glayout.addWidget(self.lblScheduleRepeated, 5, 0, 1, 2)
 
-        self.lblScheduleRepeatedPeriod = QLabel(_('Every') + ':')
+        self.lblScheduleRepeatedPeriod = QLabel(_('Every:'))
         self.lblScheduleRepeatedPeriod.setContentsMargins(5, 0, 0, 0)
         self.lblScheduleRepeatedPeriod.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -622,20 +633,19 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(tabWidget, _('&Exclude'))
         layout = QVBoxLayout(tabWidget)
 
-        self.lblSshEncfsExcludeWarning = QLabel(
-            "<b>{}:</b> {}".format(
-                _('Info'),
-                _(
-                    "In 'SSH encrypted' mode, only single or double asterisks "
-                    "are functional (e.g. {example2}). Other types of "
-                    "wildcards and patterns will be ignored (e.g. {example1})."
-                    "Filenames are unpredictable in this mode due to "
-                    "encryption by EncFS."
-                ).format(example1="<code>'foo*'</code>, "
-                                  "<code>'[fF]oo'</code>, "
-                                  "<code>'fo?'</code>",
-                         example2="<code>'foo/*'</code>, "
-                                  "<code>'foo/**/bar'</code>")
+        self.lblSshEncfsExcludeWarning = QLabel(_(
+            "{BOLD}Info{ENDBOLD}: "
+            "In 'SSH encrypted' mode, only single or double asterisks are "
+            "functional (e.g. {example2}). Other types of wildcards and "
+            "patterns will be ignored (e.g. {example1}). Filenames are "
+            "unpredictable in this mode due to encryption by EncFS.").format(
+                BOLD='<strong>',
+                ENDBOLD='</strong>',
+                example1="<code>'foo*'</code>, "
+                         "<code>'[fF]oo'</code>, "
+                         "<code>'fo?'</code>",
+                example2="<code>'foo/*'</code>, "
+                         "<code>'foo/**/bar'</code>"
             ),
             self
         )
@@ -643,7 +653,8 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.lblSshEncfsExcludeWarning)
 
         self.listExclude = QTreeWidget(self)
-        self.listExclude.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.listExclude.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection)
         self.listExclude.setRootIsDecorated(False)
         self.listExclude.setHeaderLabels(
             [_('Exclude patterns, files or folders'), 'Count'])
@@ -692,16 +703,18 @@ class SettingsDialog(QDialog):
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
         self.cbExcludeBySize = QCheckBox(
-            _('Exclude files bigger than: '), self)
-        self.cbExcludeBySize.setToolTip(
-            _('Exclude files bigger than value in %(prefix)s.\n'
-              'With \'Full rsync mode\' disabled this will only affect '
-              'new files\n'
-              'because for rsync this is a transfer option, not an '
-              'exclude option.\n'
-              'So big files that have been backed up before will remain '
-              'in snapshots\n'
-              'even if they have changed.' % {'prefix': 'MiB'})
+            _('Exclude files bigger than:'), self)
+        qttools.set_wrapped_tooltip(
+            self.cbExcludeBySize,
+            [
+                _('Exclude files bigger than value in {size_unit}.')
+                .format(size_unit='MiB'),
+                _("With 'Full rsync mode' disabled, this will only impact "
+                  "new files since for rsync, this is a transfer option, not "
+                  "an exclusion option. Therefore, large files that have "
+                  "been backed up previously will persist in snapshots even "
+                  "if they have been modified.")
+            ]
         )
         hlayout.addWidget(self.cbExcludeBySize)
         self.spbExcludeBySize = QSpinBox(self)
@@ -722,7 +735,7 @@ class SettingsDialog(QDialog):
         layout = QGridLayout(layoutWidget)
 
         # remove old snapshots
-        self.cbRemoveOlder = QCheckBox(_('Older than') + ':', self)
+        self.cbRemoveOlder = QCheckBox(_('Older than:'), self)
         layout.addWidget(self.cbRemoveOlder, 0, 0)
         self.cbRemoveOlder.stateChanged.connect(self.updateRemoveOlder)
 
@@ -744,7 +757,7 @@ class SettingsDialog(QDialog):
         enabled, value, unit = self.config.minFreeSpace()
 
         self.cbFreeSpace = QCheckBox(
-            _('If free space is less than') + ':', self)
+            _('If free space is less than:'), self)
         layout.addWidget(self.cbFreeSpace, 1, 0)
         self.cbFreeSpace.stateChanged.connect(self.updateFreeSpace)
 
@@ -764,7 +777,7 @@ class SettingsDialog(QDialog):
 
         # min free inodes
         self.cbFreeInodes = QCheckBox(
-            _('If free inodes is less than') + ':', self)
+            _('If free inodes is less than:'), self)
         layout.addWidget(self.cbFreeInodes, 2, 0)
 
         self.spbFreeInodes = QSpinBox(self)
@@ -778,7 +791,7 @@ class SettingsDialog(QDialog):
         self.cbFreeInodes.stateChanged.connect(enabled)
 
         # smart remove
-        self.cbSmartRemove = QCheckBox(_('Smart remove:'), self)
+        self.cbSmartRemove = QCheckBox(_('Smart removal:'), self)
         layout.addWidget(self.cbSmartRemove, 3, 0)
 
         widget = QWidget(self)
@@ -862,25 +875,27 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.cbNoSnapshotOnBattery)
 
         self.cbGlobalFlock = QCheckBox(_('Run only one snapshot at a time'))
-        self.cbGlobalFlock.setToolTip(
+        qttools.set_wrapped_tooltip(
+            self.cbGlobalFlock,
             _('Other snapshots will be blocked until the current snapshot '
-              'is done.\n'
-              'This is a global option. So it will affect all profiles '
-              'for this user.\n'
-              'But you need to activate this for all other users, too.')
+              'is done. This is a global option. So it will affect all '
+              'profiles for this user. But you need to activate this for all '
+              'other users, too.')
         )
         layout.addWidget(self.cbGlobalFlock)
 
         self.cbBackupOnRestore = QCheckBox(
             _('Backup replaced files on restore'), self)
-        self.cbBackupOnRestore.setToolTip(
-            _("Newer versions of files will be renamed with trailing "
-              "{suffix} before restoring.\n"
-              "If you don't need them anymore you can remove them with {cmd}")
-            .format(suffix=self.snapshots.backupSuffix(),
-                    cmd='find ./ -name "*{suffix}" -delete'
-                        .format(suffix=self.snapshots.backupSuffix())
-                    )
+        qttools.set_wrapped_tooltip(
+            self.cbBackupOnRestore,
+            _("Newer versions of files will be renamed with trailing {suffix} "
+              "before restoring. If you don't need them anymore you can "
+              "remove them with {cmd}").format(
+                  suffix=self.snapshots.backupSuffix(),
+                  cmd='find ./ -name "*{suffix}" -delete'.format(
+                      suffix=self.snapshots.backupSuffix()
+                  )
+              )
         )
         layout.addWidget(self.cbBackupOnRestore)
 
@@ -900,7 +915,7 @@ class SettingsDialog(QDialog):
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
 
-        hlayout.addWidget(QLabel(_('Log Level') + ':', self))
+        hlayout.addWidget(QLabel(_('Log Level:'), self))
 
         self.comboLogLevel = QComboBox(self)
         hlayout.addWidget(self.comboLogLevel, 1)
@@ -997,25 +1012,28 @@ class SettingsDialog(QDialog):
             _('Redirect stdout to /dev/null in cronjobs.')
             + self.printDefault(self.config.DEFAULT_REDIRECT_STDOUT_IN_CRON),
             self)
-        self.cbRedirectStdoutInCron.setToolTip(
-            'cron will automatically send an email with attached output '
-            'of cronjobs if an MTA is installed.')
+        qttools.set_wrapped_tooltip(
+            self.cbRedirectStdoutInCron,
+            _('Cron will automatically send an email with attached output '
+              'of cronjobs if an MTA is installed.')
+        )
         layout.addWidget(self.cbRedirectStdoutInCron)
 
         self.cbRedirectStderrInCron = QCheckBox(
             _('Redirect stderr to /dev/null in cronjobs.')
             + self.printDefault(self.config.DEFAULT_REDIRECT_STDERR_IN_CRON),
             self)
-        self.cbRedirectStderrInCron.setToolTip(
-            'cron will automatically send an email with attached errors '
-            'of cronjobs if an MTA is installed.')
+        qttools.set_wrapped_tooltip(
+            self.cbRedirectStderrInCron,
+            _('Cron will automatically send an email with attached errors '
+              'of cronjobs if an MTA is installed.')
+        )
         layout.addWidget(self.cbRedirectStderrInCron)
 
         # bwlimit
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
-        self.cbBwlimit = QCheckBox(
-            _('Limit rsync bandwidth usage') + ': ', self)
+        self.cbBwlimit = QCheckBox(_('Limit rsync bandwidth usage:'), self)
         hlayout.addWidget(self.cbBwlimit)
         self.spbBwlimit = QSpinBox(self)
         self.spbBwlimit.setSuffix(' ' + _('KB/sec'))
@@ -1026,98 +1044,114 @@ class SettingsDialog(QDialog):
         enabled = lambda state: self.spbBwlimit.setEnabled(state)
         enabled(False)
         self.cbBwlimit.stateChanged.connect(enabled)
-        self.cbBwlimit.setToolTip(
-            'uses \'rsync --bwlimit=RATE\'\n'
-            'From \'man rsync\':\n'
-            'This option allows you to specify the maximum transfer rate for\n'
-            'the data sent over the socket, specified in units per second.\n'
-            'The RATE value can be suffixed with a string to indicate a size\n'
-            'multiplier, and may be a fractional value '
-            '(e.g. "--bwlimit=1.5m").\n'
-            'If no suffix is specified, the value will be assumed to be in\n'
-            'units of 1024 bytes (as if "K" or "KiB" had been appended).\n'
-            'See the --max-size option for a description of '
-            'all the available\n'
-            'suffixes. A value of zero specifies no limit.\n\n'
-            'For backward-compatibility reasons, the rate limit will be\n'
-            'rounded to the nearest KiB unit, so no rate smaller than\n'
-            '1024 bytes per second is possible.\n\n'
-            'Rsync writes data over the socket in blocks, and this option\n'
-            'both limits the size of the blocks that rsync writes, and tries\n'
-            'to keep the average transfer rate at the requested limit.\n'
-            'Some "burstiness" may be seen where rsync writes out a block\n'
-            'of data and then sleeps to bring the average rate '
-            'into compliance.\n\n'
-            'Due to the internal buffering of data, the --progress option\n'
-            'may not be an accurate reflection on how fast the data is being\n'
-            'sent. This is because some files can show up as being rapidly\n'
-            'sent when the data is quickly buffered, while other can show up\n'
-            'as very slow when the flushing of the output buffer occurs.\n'
-            'This may be fixed in a future version.'
-            )
+        qttools.set_wrapped_tooltip(
+            self.cbBwlimit,
+            [
+                "Uses 'rsync --bwlimit=RATE'. From 'man rsync':",
+                'This option allows you to specify the maximum transfer rate '
+                'for the data sent over the socket, specified in units per '
+                'second. The RATE value can be suffixed with a string to '
+                'indicate a size multiplier, and may be a fractional value '
+                '(e.g. "--bwlimit=1.5m").',
+                'If no suffix is specified, the value will be assumed to be '
+                'in units of 1024 bytes (as if "K" or "KiB" had been '
+                'appended).',
+                'See the --max-size option for a description of all the '
+                'available suffixes. A value of zero specifies no limit.'
+                '',
+                'For backward-compatibility reasons, the rate limit will be '
+                'rounded to the nearest KiB unit, so no rate smaller than '
+                '1024 bytes per second is possible.',
+                '',
+                'Rsync writes data over the socket in blocks, and this option '
+                'both limits the size of the blocks that rsync writes, and '
+                'tries to keep the average transfer rate at the requested '
+                'limit. Some "burstiness" may be seen where rsync writes out '
+                'a block of data and then sleeps to bring the average rate '
+                'into compliance.',
+                '',
+                'Due to the internal buffering of data, the --progress '
+                'option may not be an accurate reflection on how fast the '
+                'data is being sent. This is because some files can show up '
+                'as being rapidly sent when the data is quickly buffered, '
+                'while other can show up as very slow when the flushing of '
+                'the output buffer occurs. This may be fixed in a future '
+                'version.'
+            ]
+        )
 
         self.cbPreserveAcl = QCheckBox(_('Preserve ACL'), self)
-        self.cbPreserveAcl.setToolTip(
-            'uses \'rsync -A\'\n'
-            'From \'man rsync\':\n'
-            'This option causes rsync to update the destination ACLs to be\n'
-            'the same as the source ACLs. The option also implies '
-            '--perms.\n\n'
-            'The source and destination systems must have compatible ACL\n'
-            'entries for this option to work properly.\n'
-            'See the --fake-super option for a way to backup and restore\n'
-            'ACLs that are not compatible.'
+        qttools.set_wrapped_tooltip(
+            self.cbPreserveAcl,
+            [
+                "Uses 'rsync -A'. From 'man rsync':",
+                'This option causes rsync to update the destination ACLs to '
+                'be the same as the source ACLs. The option also implies '
+                '--perms.',
+                '',
+                'The source and destination systems must have compatible ACL '
+                'entries for this option to work properly. See the '
+                '--fake-super option for a way to backup and restore ACLs '
+                'that are not compatible.'
+            ]
         )
         layout.addWidget(self.cbPreserveAcl)
 
         self.cbPreserveXattr = QCheckBox(
             _('Preserve extended attributes (xattr)'), self)
-        self.cbPreserveXattr.setToolTip(
-            'uses \'rsync -X\'\n'
-            'From \'man rsync\':\n'
-            'This option causes rsync to update the destination extended\n'
-            'attributes to be the same as the source ones.\n\n'
-            'For systems that support extended-attribute namespaces, a copy\n'
-            'being done by a super-user copies all namespaces except\n'
-            'system.*. A normal user only copies the user.* namespace.\n'
-            'To be able to backup and restore non-user namespaces as '
-            'a normal\n'
-            'user, see the --fake-super option.\n\n'
-            'Note that this option does not copy rsyncs special xattr values\n'
-            '(e.g. those used by --fake-super) unless you repeat the option\n'
-            '(e.g. -XX). This "copy all xattrs" mode cannot be used\n'
-            'with --fake-super.'
+        qttools.set_wrapped_tooltip(
+            self.cbPreserveXattr,
+            [
+                "Uses 'rsync -X'. From 'man rsync':",
+                'This option causes rsync to update the destination extended '
+                'attributes to be the same as the source ones.',
+                '',
+                'For systems that support extended-attribute namespaces, a '
+                'copy being done by a super-user copies all namespaces '
+                'except system.*. A normal user only copies the user.* '
+                'namespace. To be able to backup and restore non-user '
+                'namespaces as a normal user, see the --fake-super option.',
+                '',
+                'Note that this option does not copy rsyncs special xattr '
+                'values (e.g. those used by --fake-super) unless you repeat '
+                'the option (e.g. -XX). This "copy all xattrs" mode cannot be '
+                'used with --fake-super.'
+            ]
         )
         layout.addWidget(self.cbPreserveXattr)
 
         self.cbCopyUnsafeLinks = QCheckBox(
             _('Copy unsafe links (works only with absolute links)'), self)
-        self.cbCopyUnsafeLinks.setToolTip(
-            'uses \'rsync --copy-unsafe-links\'\n'
-            'From \'man rsync\':\n'
-            'This tells rsync to copy the referent of symbolic links that\n'
-            'point outside the copied tree. Absolute symlinks are also\n'
-            'treated like ordinary files, and so are any symlinks in the\n'
-            'source path itself when --relative is used. This option has\n'
-            'no additional effect if --copy-links was also specified.\n'
+        qttools.set_wrapped_tooltip(
+            self.cbCopyUnsafeLinks,
+            [
+                "Uses 'rsync --copy-unsafe-links'. From 'man rsync':",
+                'This tells rsync to copy the referent of symbolic links that '
+                'point outside the copied tree. Absolute symlinks are also '
+                'treated like ordinary files, and so are any symlinks in the '
+                'source path itself when --relative is used. This option has '
+                'no additional effect if --copy-links was also specified.'
+            ]
         )
         layout.addWidget(self.cbCopyUnsafeLinks)
 
         self.cbCopyLinks = QCheckBox(
             _('Copy links (dereference symbolic links)'), self)
-        self.cbCopyLinks.setToolTip(
-            'uses \'rsync --copy-links\'\n'
-            'From \'man rsync\':\n'
-            'When symlinks are encountered, the item that they point to\n'
-            '(the referent) is copied, rather than the symlink. In older\n'
-            'versions of rsync, this option also had the side-effect of\n'
-            'telling the receiving side to follow symlinks, such as\n'
-            'symlinks to directories. In a modern rsync such as this one,\n'
-            'you\'ll need to specify --keep-dirlinks (-K) to get this extra\n'
-            'behavior. The only exception is when sending files to an rsync\n'
-            'that is too old to understand -K -- in that case, the -L option\n'
-            'will still have the side-effect of -K on that older '
-            'receiving rsync.'
+        qttools.set_wrapped_tooltip(
+            self.cbCopyLinks,
+            [
+                "Uses 'rsync --copy-links'. From 'man rsync':",
+                'When symlinks are encountered, the item that they point to '
+                '(the referent) is copied, rather than the symlink. In older '
+                'versions of rsync, this option also had the side-effect of '
+                'telling the receiving side to follow symlinks, such as '
+                'symlinks to directories. In a modern rsync such as this one,'
+                ' you will need to specify --keep-dirlinks (-K) to get this '
+                'extra behavior. The only exception is when sending files to '
+                'an rsync that is too old to understand -K -- in that case, '
+                'the -L option will still have the side-effect of -K on that '
+                'older receiving rsync.'
+            ]
         )
         layout.addWidget(self.cbCopyLinks)
 
@@ -1127,8 +1161,7 @@ class SettingsDialog(QDialog):
         qttools.set_wrapped_tooltip(
             self.cbOneFileSystem,
             [
-                'uses \'rsync --one-file-system\'',
-                'From \'man rsync\':',
+                "Uses 'rsync --one-file-system'. From 'man rsync':",
                 'This tells rsync to avoid crossing a filesystem boundary '
                 'when recursing. This does not limit the user\'s ability '
                 'to specify items to copy from multiple filesystems, just '
@@ -1161,22 +1194,24 @@ class SettingsDialog(QDialog):
         # ssh prefix
         hlayout = QHBoxLayout()
         layout.addLayout(hlayout)
-        tooltip = _(
-            'Prefix to run before every command on remote host.\n'
-            'Variables need to be escaped with \\$FOO.\n'
-            'This doesn\'t touch rsync. So to add a prefix\n'
-            'for rsync use "%(cbRsyncOptions)s" with\n'
-            '%(rsync_options_value)s\n\n'
-            '%(default)s: %(def_value)s') % {
-                'cbRsyncOptions': self.cbRsyncOptions.text(),
-                'rsync_options_value': '--rsync-path="FOO=bar:\\$FOO /usr/bin/rsync"',
-                'default': _('default'),
-                'def_value': self.config.DEFAULT_SSH_PREFIX}
         self.cbSshPrefix = QCheckBox(_('Add prefix to SSH commands'), self)
-        self.cbSshPrefix.setToolTip(tooltip)
+        tooltip = [
+            _('Prefix to run before every command on remote host.'),
+            _("Variables need to be escaped with \\$FOO. This doesn't touch "
+              'rsync. So to add a prefix for rsync use "{example_value}" with '
+              '{rsync_options_value}.').format(
+                  example_value=self.cbRsyncOptions.text(),
+                  rsync_options_value \
+                      ='--rsync-path="FOO=bar:\\$FOO /usr/bin/rsync"'),
+            '',
+            '{default}: {def_value}'.format(
+                default=_('default'),
+                def_value=self.config.DEFAULT_SSH_PREFIX)
+        ]
+        qttools.set_wrapped_tooltip(self.cbSshPrefix, tooltip)
         hlayout.addWidget(self.cbSshPrefix)
         self.txtSshPrefix = QLineEdit(self)
-        self.txtSshPrefix.setToolTip(tooltip)
+        qttools.set_wrapped_tooltip(self.txtSshPrefix, tooltip)
         hlayout.addWidget(self.txtSshPrefix)
 
         enabled = lambda state: self.txtSshPrefix.setEnabled(state)
@@ -1186,16 +1221,18 @@ class SettingsDialog(QDialog):
         qttools.equalIndent(self.cbRsyncOptions, self.cbSshPrefix)
 
         self.cbSshCheckPing = QCheckBox(_('Check if remote host is online'))
-        self.cbSshCheckPing.setToolTip(
-            _('Warning: if disabled and the remote host\n'
-              'is not available, this could lead to some\n'
-              'weird errors.'))
+        qttools.set_wrapped_tooltip(
+            self.cbSshCheckPing,
+            _('Warning: If disabled and the remote host is not available, '
+              'this could lead to some weird errors.')
+        )
         self.cbSshCheckCommands = QCheckBox(
-            _('Check if remote host supports all necessary commands'))
-        self.cbSshCheckCommands.setToolTip(
-            _('Warning: if disabled and the remote host\n'
-              'does not support all necessary commands,\n'
-              'this could lead to some weird errors.'))
+            _('Check if remote host supports all necessary commands.'))
+        qttools.set_wrapped_tooltip(
+            self.cbSshCheckCommands,
+            _('Warning: If disabled and the remote host does not support all '
+              'necessary commands, this could lead to some weird errors.')
+        )
         layout.addWidget(self.cbSshCheckPing)
         layout.addWidget(self.cbSshCheckCommands)
 
@@ -1227,6 +1264,31 @@ class SettingsDialog(QDialog):
         self.resize(size)
 
         self.finished.connect(self.cleanup)
+
+    def _create_label_encfs_deprecation(self):
+        # encfs deprecation warning (see #1734, #1735)
+        label = QLabel('<b>{}:</b> {}'.format(
+            _('Warning'),
+            _('Support for EncFS will be discontinued in the foreseeable '
+              'future. A decision on a replacement for continued support of '
+              'encrypted backups is still pending, depending on project '
+              'resources and contributor availability. More details are '
+              'available in this {whitepaper}.').format(
+                  whitepaper='<a href="{}">{}</a>'.format(
+                      URL_ENCRYPT_TRANSITION,
+                      _('whitepaper'))
+                  )
+        ))
+        label.setWordWrap(True)
+        label.setOpenExternalLinks(True)
+
+        # Show URL in tooltip without anoing http-protocol prefix.
+        label.linkHovered.connect(
+            lambda url: QToolTip.showText(
+                QCursor.pos(), url.replace('https://', ''))
+        )
+
+        return label
 
     def addProfile(self):
         ret_val = QInputDialog.getText(self, _('New profile'), str())
@@ -1366,14 +1428,17 @@ class SettingsDialog(QDialog):
         ))
 
         if not recommend:
-            recommend = [_('(All recommendations already included.)')]
+            text = _('{BOLD}Highly recommended{ENDBOLD}: (All recommendations '
+                    'already included.)').format(
+                        BOLD='<strong>', ENDBOLD='</strong>')
 
-        self._label_exclude_recommend.setText(
-            '<strong>{}</strong>: {}'.format(
-                _('Highly recommended'),
-                ', '.join(sorted(recommend))
-            )
-        )
+        else:
+            text = _('{BOLD}Highly recommended{ENDBOLD}: {files}').format(
+                BOLD='<strong>',
+                ENDBOLD='</strong>',
+                files=', '.join(sorted(recommend)))
+
+        self._label_exclude_recommend.setText(text)
 
     def updateProfile(self):
         if self.config.currentProfile() == '1':
@@ -1563,6 +1628,15 @@ class SettingsDialog(QDialog):
 
         if item_data == self.config.CUSTOM_HOUR:
 
+            # TODO
+            # Dev note (buhtz, 2024-05): IMHO checkCronPattern() is not needed
+            # because the "crontab" command itself will validate this. See
+            # schedule.write_crontab().
+            # We just need to take care to catch an the error in the GUI
+            # and report it to the user.
+            # An alternative solution would be a GUI element where the user
+            # is not able to input an invalid value. See #1449 about redesign
+            # the schedule section in the Manage Profiles dialog.
             if not tools.checkCronPattern(self.txtScheduleCronPatern.text()):
 
                 self.errorHandler(
@@ -1612,9 +1686,10 @@ class SettingsDialog(QDialog):
 
             if not self.txtSshPrivateKeyFile.text():
 
-                question = _('You did not choose a private key file for '
-                             'SSH.\nWould you like to generate a new '
-                             'password-less public/private key pair?')
+                question = '{}\n{}'.format(
+                        _('You did not choose a private key file for SSH.'),
+                        _('Would you like to generate a new password-less '
+                          'public/private key pair?'))
                 if self.questionHandler(question):
                     self.btnSshKeyGenClicked()
 
@@ -1774,13 +1849,12 @@ class SettingsDialog(QDialog):
 
             try:
                 mnt.preMountCheck(mode=mode, first_run=True, **mount_kwargs)
+
             except NoPubKeyLogin as ex:
                 logger.error(str(ex), self)
 
-                question = _(
-                    'Would you like to copy your public SSH key to the\n'
-                    'remote host to enable password-less login?'
-                )
+                question = _('Would you like to copy your public SSH key to '
+                             'the remote host to enable password-less login?')
                 rc_copy_id = sshtools.sshCopyId(
                     self.config.sshPrivateKeyFile() + '.pub',
                     self.config.sshUser(),
@@ -1809,17 +1883,19 @@ class SettingsDialog(QDialog):
 
                     return False
 
-                msg = _("The authenticity of host {host} can't be "
-                        "established.\n\n{keytype} key fingerprint is:") \
-                        .format(host='"{}"'.format(self.config.sshHost()),
-                                keytype=keyType)
+                msg = '{}\n\n{}'.format(
+                        _("The authenticity of host {host} can't be "
+                          "established.").format(
+                              host=self.config.sshHost()),
+                        _('{keytype} key fingerprint is:').format(
+                            keytype=keyType))
                 options = []
                 lblFingerprint = QLabel(fingerprint + '\n')
                 lblFingerprint.setWordWrap(False)
                 lblFingerprint.setFont(QFont('Monospace'))
                 options.append({'widget': lblFingerprint, 'retFunc': None})
                 lblQuestion = QLabel(
-                    _("Please verify this fingerprint! Would you like to "
+                    _("Please verify this fingerprint. Would you like to "
                       "add it to your 'known_hosts' file?")
                 )
                 options.append({'widget': lblQuestion, 'retFunc': None})
@@ -1897,22 +1973,34 @@ class SettingsDialog(QDialog):
     def addInclude(self, data):
         item = QTreeWidgetItem()
 
+        # Directory(0) or file(1)?
         if data[1] == 0:
             item.setIcon(0, self.icon.FOLDER)
         else:
             item.setIcon(0, self.icon.FILE)
 
+        # Prevent duplicates
+        duplicates = self.listInclude.findItems(
+            data[0], Qt.MatchFlag.MatchFixedString)
+
+        if duplicates:
+            self.listInclude.setCurrentItem(duplicates[0])
+            return
+
+        # First column
         item.setText(0, data[0])
         item.setData(0, Qt.ItemDataRole.UserRole, data[1])
         self.listIncludeCount += 1
+
+        # Second (hidden!) column.
+        # Don't know why we need it.
         item.setText(1, str(self.listIncludeCount).zfill(6))
         item.setData(1, Qt.ItemDataRole.UserRole, self.listIncludeCount)
+
         self.listInclude.addTopLevelItem(item)
 
-        if self.listInclude.currentItem() is None:
-            self.listInclude.setCurrentItem(item)
-
-        return item
+        # Select/highlight that entry.
+        self.listInclude.setCurrentItem(item)
 
     def _add_exclude_pattern(self, pattern):
         item = QTreeWidgetItem()
@@ -1977,7 +2065,11 @@ class SettingsDialog(QDialog):
             return
 
         # Duplicate?
-        if self.listExclude.findItems(pattern, Qt.MatchFlag.MatchFixedString):
+        duplicates = self.listExclude.findItems(
+            pattern, Qt.MatchFlag.MatchFixedString)
+
+        if duplicates:
+            self.listExclude.setCurrentItem(duplicates[0])
             return
 
         # Create new entry and add it to the list widget.
@@ -2124,7 +2216,7 @@ class SettingsDialog(QDialog):
         if sshtools.sshKeyGen(key):
             self.txtSshPrivateKeyFile.setText(key)
         else:
-            self.errorHandler(_('Failed to create new SSH key in {path}')
+            self.errorHandler(_('Failed to create new SSH key in {path}.')
                               .format(path=key))
 
     def comboModesChanged(self, *params):
@@ -2195,8 +2287,21 @@ class SettingsDialog(QDialog):
         self.cbSshCheckPing.setHidden(not enabled)
         self.cbSshCheckCommands.setHidden(not enabled)
 
-        self.encfsWarning.setHidden(
-            active_mode not in ('local_encfs', 'ssh_encfs'))
+        # EncFS deprecation warnings (see #1734)
+        if active_mode in ('local_encfs', 'ssh_encfs'):
+            self.encfsWarning.setHidden(False)
+
+            # Workaround to avoid showing the warning messagebox just when
+            # opening the manage profiles dialog.
+            if self.isVisible():
+                # Show the profile specific warning dialog only once per
+                # profile.
+                if self.config.profileBoolValue('msg_shown_encfs') is False:
+                    self.config.setProfileBoolValue('msg_shown_encfs', True)
+                    dlg = encfsmsgbox.EncfsCreateWarning(self)
+                    dlg.exec()
+        else:
+            self.encfsWarning.setHidden(True)
 
     def fullPathChanged(self, dummy):
         if self.mode in ('ssh', 'ssh_encfs'):
@@ -2204,7 +2309,7 @@ class SettingsDialog(QDialog):
         else:
             path = self.editSnapshotsPath.text()
         self.lblFullPath.setText(
-            _('Full snapshot path: ') +
+            _('Full snapshot path:') + ' ' +
             os.path.join(
                 path,
                 'backintime',
@@ -2217,7 +2322,6 @@ class SettingsDialog(QDialog):
         for index in range(self.listExclude.topLevelItemCount()):
             item = self.listExclude.topLevelItem(index)
             self._formatExcludeItem(item)
-
 
     def _format_exclude_item_encfs_invalid(self, item):
         """Modify visual appearance of an item in the exclude list widget to
@@ -2242,7 +2346,6 @@ class SettingsDialog(QDialog):
         item.setForeground(0, QPalette().brush(QPalette.ColorGroup.Disabled,
                                                 QPalette.ColorRole.Text))
 
-
     def _formatExcludeItem(self, item):
         """Modify visual appearance of an item in the exclude list widget.
         """
@@ -2264,9 +2367,8 @@ class SettingsDialog(QDialog):
                 item.setIcon(0, self.icon.DEFAULT_EXCLUDE)
 
             else:
-                # Icon: user definied
+                # Icon: user defined
                 item.setIcon(0, self.icon.EXCLUDE)
-
 
     def customSortOrder(self, header, loop, newColumn, newOrder):
 
@@ -2293,13 +2395,8 @@ class SettingsDialog(QDialog):
             self.listExclude.header(), self.listExcludeSortLoop, *args)
 
     def printDefault(self, value):
-        if value:
-            value_ = _('enabled')
-
-        else:
-            value_ = _('disabled')
-
-        return ' (%s: %s)' % (_('default'), value_)
+        return ' ' + _('(default: {})').format(
+            _('enabled') if value else _('disabled'))
 
     def restoreConfig(self, *args):
         RestoreConfigDialog(self).exec()
@@ -2342,33 +2439,10 @@ class RestoreConfigDialog(QDialog):
         import icon
         self.icon = icon
         self.setWindowIcon(icon.SETTINGS_DIALOG)
-        self.setWindowTitle(_('Restore Settings'))
+        self.setWindowTitle(_('Import configuration'))
 
         layout = QVBoxLayout(self)
-
-        # show a hint on how the snapshot path will look like.
-        samplePath = os.path.join(
-            'backintime',
-            self.config.host(),
-            getpass.getuser(), '1',
-            snapshots.SID(datetime.datetime.now(), self.config).sid
-        )
-
-        label = QLabel(_(
-            "Please navigate to the snapshot from which you want to restore "
-            "{appName}'s configuration. The path may look like:\n"
-            "{samplePath}\n\nIf your snapshots are on a remote drive or if "
-            "they are encrypted you need to manually mount them first. "
-            "If you use Mode SSH you also may need to set up public key "
-            "login to the remote host.\n"
-            "Take a look at 'man backintime'.")
-            .format(
-                appName=self.config.APP_NAME,
-                samplePath=samplePath),
-            self
-        )
-        label.setWordWrap(True)
-        layout.addWidget(label)
+        layout.addWidget(self._create_hint_label())
 
         # treeView
         self.treeView = qttools.MyTreeView(self)
@@ -2395,7 +2469,8 @@ class RestoreConfigDialog(QDialog):
         layout.addWidget(self.treeView)
 
         # context menu
-        self.treeView.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.treeView.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.onContextMenu)
         self.contextMenu = QMenu(self)
         self.btnShowHidden = self.contextMenu.addAction(
@@ -2405,9 +2480,11 @@ class RestoreConfigDialog(QDialog):
 
         # colors
         self.colorRed = QPalette()
-        self.colorRed.setColor(QPalette.WindowText, QColor(205, 0, 0))
+        self.colorRed.setColor(
+            QPalette.ColorRole.WindowText, QColor(205, 0, 0))
         self.colorGreen = QPalette()
-        self.colorGreen.setColor(QPalette.WindowText, QColor(0, 160, 0))
+        self.colorGreen.setColor(
+            QPalette.ColorRole.WindowText, QColor(0, 160, 0))
 
         # wait indicator which will show that the scan for
         # snapshots is still running
@@ -2443,7 +2520,7 @@ class RestoreConfigDialog(QDialog):
 
         buttonBox = QDialogButtonBox(self)
         self.restoreButton = buttonBox.addButton(
-            _('Restore'), QDialogButtonBox.ButtonRole.AcceptRole)
+            _('Import'), QDialogButtonBox.ButtonRole.AcceptRole)
         self.restoreButton.setEnabled(False)
         buttonBox.addButton(QDialogButtonBox.StandardButton.Cancel)
         buttonBox.accepted.connect(self.accept)
@@ -2453,6 +2530,37 @@ class RestoreConfigDialog(QDialog):
         self.scan.start()
 
         self.resize(600, 700)
+
+    def _create_hint_label(self):
+        """Create the label to explain how and where to find existing config
+        file.
+
+        Returns:
+            (QLabel): The label
+        """
+
+        samplePath = os.path.join(
+            'backintime',
+            self.config.host(),
+            getpass.getuser(), '1',
+            snapshots.SID(datetime.datetime.now(), self.config).sid
+        )
+        samplePath = f'</ br><code>{samplePath}</code>'
+
+        text_a = _(
+            'Select the snapshot folder from which the configuration '
+            'file should be imported. The path may look like: {samplePath}'
+        ).format(samplePath=samplePath)
+
+        text_b = _(
+            'If the folder is located on an external or remote drive, '
+            'it must be manually mounted beforehand.'
+        )
+
+        label = QLabel(f'<p>{text_a}</p><p>{text_b}</p>', self)
+        label.setWordWrap(True)
+
+        return label
 
     def pathFromIndex(self, index):
         """
@@ -2545,9 +2653,9 @@ class RestoreConfigDialog(QDialog):
         for row, profileId in enumerate(cfg.profiles()):
 
             for col, txt in enumerate((
-                    _('Profile') + ': ' + str(profileId),
+                    _('Profile:') + str(profileId),
                     cfg.profileName(profileId),
-                    _('Mode') + ': ' + cfg.SNAPSHOT_MODES[
+                    _('Mode:') + cfg.SNAPSHOT_MODES[
                         cfg.snapshotsMode(profileId)][1]
                     )):
                 self.gridProfiles.addWidget(QLabel(txt, self), row, col)
@@ -2695,14 +2803,14 @@ class EditUserCallback(QDialog):
             logger.error(
                 'user-callback script has no shebang (#!/bin/sh) line.')
             self.config.errorHandler(
-                _('user-callback script has no shebang (#!/bin/sh) line.'))
+                'user-callback script has no shebang (#!/bin/sh) line.')
 
             return False
 
         if not tools.checkCommand(m.group(1)):
             logger.error('Shebang in user-callback script is not executable.')
-            self.config.errorHandler(
-                _('Shebang in user-callback script is not executable.'))
+            self.config.errorHandle(
+                'Shebang in user-callback script is not executable.')
 
             return False
 
@@ -2718,13 +2826,3 @@ class EditUserCallback(QDialog):
         os.chmod(self.script, 0o755)
 
         super(EditUserCallback, self).accept()
-
-
-def debugTrace():
-    """
-    Set a tracepoint in the Python debugger that works with Qt
-    """
-    from pdb import set_trace
-
-    pyqtRemoveInputHook()
-    set_trace()

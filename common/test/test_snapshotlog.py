@@ -17,15 +17,12 @@
 
 import os
 import sys
-import unittest
 import re
 from test import generic
-from tempfile import TemporaryDirectory
 from datetime import datetime
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import snapshotlog
-import config
 import snapshots
 
 
@@ -86,7 +83,7 @@ class TestLogFilter(generic.TestCase):
             self.assertEqual(line, logFilter.filter(line))
         for line in (self.e, self.c, self.i, self.h):
             self.assertIsNone(logFilter.filter(line))
-        for line in (self.n):
+        for line in self.n:
             self.assertEqual(line, logFilter.filter(line))  # empty line stays empty line
 
 class TestSnapshotLog(generic.SnapshotsTestCase):

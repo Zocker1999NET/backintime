@@ -26,19 +26,14 @@ import signal
 import re
 import errno
 import gzip
-import tempfile
+import locale
 import gettext
-try:
-    from collections.abc import MutableSet
-except ImportError:
-    from collections import MutableSet
 import hashlib
 import ipaddress
 import atexit
 from datetime import datetime
 from packaging.version import Version
 from time import sleep
-
 import logger
 
 # Try to import keyring
@@ -93,15 +88,17 @@ DISK_BY_UUID = '/dev/disk/by-uuid'
 def sharePath():
     """Get path where Back In Time is installed.
 
-    This is similar to $XDG_DATA_DIRS (XDG Base Directory Specification).
-    If running from source return default ``/usr/share``.
+    This is similar to ``XDG_DATA_DIRS``. If running from source return
+    default ``/usr/share``.
+
+    Share path like: ::
+
+        /usr/share
+        /usr/local/share
+        /opt/usr/share
 
     Returns:
-        str: share path like::
-
-                    /usr/share
-                    /usr/local/share
-                    /opt/usr/share
+        str: Share path.
     """
     share = os.path.abspath(
         os.path.join(__file__, os.pardir, os.pardir, os.pardir)
@@ -115,16 +112,14 @@ def sharePath():
 
 def backintimePath(*path):
     """
-    Get path inside 'backintime' install folder.
+    Get path inside ``backintime`` install folder.
 
     Args:
-        *path (str):    paths that should be joined to 'backintime'
+        *path (str): Paths that should be joined to ``backintime``.
 
     Returns:
-        str:            'backintime' child path like::
-
-                            /usr/share/backintime/common
-                            /usr/share/backintime/qt
+        str: Child path of ``backintime`` child path e.g.
+            ``/usr/share/backintime/common``or ``/usr/share/backintime/qt``.
     """
     return os.path.abspath(os.path.join(__file__, os.pardir, os.pardir, *path))
 
@@ -236,7 +231,56 @@ def initiate_translation(language_code):
     )
     translation.install(names=['ngettext'])
 
-    return _determine_current_used_language_code(translation, language_code)
+    used_code = _determine_current_used_language_code(
+        translation, language_code)
+
+    set_lc_time_by_language_code(used_code)
+
+    return used_code
+
+
+def set_lc_time_by_language_code(language_code: str):
+    """Set ``LC_TIME`` based on a specific language code.
+
+    Args:
+        language_code(str): A language code consisting of two letters.
+
+    The reason is to display correctly translated weekday and months
+    names. Python's :mod:`datetime` module, as well
+    ``PyQt6.QtCore.QDate``, use :mod:`locale` to determine the
+    correct translation. The module :mod:`gettext` and
+    ``PyQt6.QtCore.QTranslator`` is not involved so their setup does
+    not take effect.
+
+    Be aware that a language code (e.g. ``de``) is not the same as a locale code
+    (e.g. ``de_DE.UTF-8``). This function attempts to determine the latter based
+    on the language code. A warning is logged if it is not possible.
+    """
+
+    # Determine the normalized locale code (e.g. "de_DE.UTF-8") by
+    # language code (e.g. "de").
+
+    # "de" -> "de_DE.ISO8859-1" -> "de_DE"
+    code = locale.normalize(language_code).split('.')[0]
+
+    try:
+        # "de_DE" -> "de_DE.UTF-8"
+        code = code + '.' + locale.getencoding()
+    except AttributeError:  # Python 3.10 or older
+        code = code + '.' + locale.getpreferredencoding()
+
+    try:
+        logger.debug(f'Try to set locale.LC_TIME to "{code}" based on '
+                     f'language code "{language_code}".')
+        locale.setlocale(locale.LC_TIME, code)
+
+    except locale.Error:
+        logger.warning(
+            f'Determined normalized locale code "{code}" (from language code '
+            f'"{language_code}") not available (or invalid). The code will be '
+            'ignored. This might lead to unusual display of dates and '
+            'timestamps, but it does not affect the functionality of the '
+            f'application. Used locale is "{locale.getlocale()}".')
 
 
 def get_available_language_codes():
@@ -515,7 +559,7 @@ def checkCommand(cmd):
 
     return which(cmd) is not None
 
-  
+
 def which(cmd):
     """Get the fullpath of executable command ``cmd``.
 
@@ -1117,6 +1161,9 @@ def checkCronPattern(s):
 
     Returns:
         bool:       ``True`` if ``s`` is a valid cron pattern
+
+    Dev note: Schedule for removal. See comment in
+    `config.Config.saveProfile()`.
     """
     if s.find(' ') >= 0:
         return False
@@ -1180,7 +1227,7 @@ def envLoad(f):
             continue
         if not key in list(env.keys()):
             os.environ[key] = value
-    del(env_file)
+    del env_file
 
 
 def envSave(f):
@@ -1611,49 +1658,60 @@ def patternHasNotEncryptableWildcard(pattern):
         return True
     return False
 
-BIT_TIME_FORMAT = '%Y%m%d %H%M'
-ANACRON_TIME_FORMAT = '%Y%m%d'
 
 def readTimeStamp(fname):
     """
     Read date string from file ``fname`` and try to return datetime.
 
     Args:
-        fname (str):        full path to timestamp file
+        fname (str): Full path to timestamp file.
 
     Returns:
-        datetime.datetime:  date from timestamp file
+        datetime.datetime: Timestamp object.
     """
+
     if not os.path.exists(fname):
-        logger.debug("no timestamp in '%(file)s'" %
-                     {'file': fname})
+        logger.debug(f"No timestamp file '{fname}'")
         return
+
     with open(fname, 'r') as f:
         s = f.read().strip('\n')
-    for i in (ANACRON_TIME_FORMAT, BIT_TIME_FORMAT):
+
+    time_formats = (
+        '%Y%m%d %H%M',  # BIT like
+        '%Y%m%d',  # Anacron like
+    )
+
+    for form in time_formats:
+
         try:
-            stamp = datetime.strptime(s, i)
-            logger.debug("read timestamp '%(time)s' from file '%(file)s'" %
-                         {'time': stamp,
-                          'file': fname})
-            return stamp
+            stamp = datetime.strptime(s, form)
+
         except ValueError:
+            # invalid format
+            # next iteration
             pass
 
+        else:
+            # valid time stamp
+            logger.debug(f"Read timestamp '{stamp}' from file '{fname}'")
+
+            return stamp
+
+
 def writeTimeStamp(fname):
-    """
-    Write current date and time into file ``fname``.
+    """Write current date and time into file ``fname``.
 
     Args:
-        fname (str):        full path to timestamp file
+        fname (str): Full path to timestamp file.
     """
-    now = datetime.now().strftime(BIT_TIME_FORMAT)
-    logger.debug("write timestamp '%(time)s' into file '%(file)s'" %
-                 {'time': now,
-                  'file': fname})
+    now = datetime.now().strftime('%Y%m%d %H%M')
+    logger.debug(f"Write timestamp '{now}' into file '{fname}'")
     makeDirs(os.path.dirname(fname))
+
     with open(fname, 'w') as f:
         f.write(now)
+
 
 INHIBIT_LOGGING_OUT = 1
 INHIBIT_USER_SWITCHING = 2
@@ -1746,71 +1804,6 @@ def unInhibitSuspend(cookie, bus, dbus_props):
         logger.warning('Release inhibit Suspend failed.')
         return (cookie, bus, dbus_props)
 
-def readCrontab():
-    """
-    Read users crontab.
-
-    Returns:
-        list:   crontab lines
-    """
-    cmd = ['crontab', '-l']
-    if not checkCommand(cmd[0]):
-        logger.debug('crontab not found.')
-        return []
-    else:
-        proc = subprocess.Popen(cmd,
-                                stdout = subprocess.PIPE,
-                                stderr = subprocess.PIPE,
-                                universal_newlines = True)
-        out, err = proc.communicate()
-        if proc.returncode or err:
-            logger.error('Failed to get crontab lines: %s, %s'
-                         %(proc.returncode, err))
-            return []
-        else:
-            crontab = [x.strip() for x in out.strip('\n').split('\n')]
-            if crontab == ['']:  # Fixes issue #1181 (line count of empty crontab was 1 instead of 0)
-                crontab = []
-            logger.debug('Read %s lines from user crontab'
-                         %len(crontab))
-            return crontab
-
-def writeCrontab(lines):
-    """
-    Write to users crontab.
-
-    Note:
-        This will overwrite the whole crontab. So to keep the old crontab and
-        only add new entries you need to read it first with
-        :py:func:`tools.readCrontab`, append new entries to the list and write
-        it back.
-
-    Args:
-        lines (:py:class:`list`, :py:class:`tuple`):
-                    lines that should be written to crontab
-
-    Returns:
-        bool:       ``True`` if successful
-    """
-    assert isinstance(lines, (list, tuple)), 'lines is not list or tuple type: %s' % lines
-    with tempfile.NamedTemporaryFile(mode = 'wt') as f:
-        f.write('\n'.join(lines))
-        f.write('\n\n')
-        f.flush()
-        cmd = ['crontab', f.name]
-        proc = subprocess.Popen(cmd,
-                                stdout = subprocess.DEVNULL,
-                                stderr = subprocess.PIPE,
-                                universal_newlines = True)
-        out, err = proc.communicate()
-    if proc.returncode or err:
-        logger.error('Failed to write lines to crontab: %s, %s'
-                     %(proc.returncode, err))
-        return False
-    else:
-        logger.debug('Wrote %s lines to user crontab'
-                     %len(lines))
-        return True
 
 def splitCommands(cmds, head = '', tail = '', maxLength = 0):
     """
@@ -1840,35 +1833,29 @@ def splitCommands(cmds, head = '', tail = '', maxLength = 0):
         s += tail
         yield s
 
-def isIPv6Address(address):
-    """
-    Check if ``address`` is a valid IPv6 address.
-
-    Args:
-        address (str):  address that should get tested
-
-    Returns:
-        bool:           True if ``address`` is a valid IPv6 address
-    """
-    try:
-        return isinstance(ipaddress.IPv6Address(address), ipaddress.IPv6Address)
-    except:
-        return False
 
 def escapeIPv6Address(address):
-    """
-    Escape IPv6 Addresses with square brackets ``[]``.
+    """Escape IP addresses with square brackets ``[]`` if they are IPv6.
+
+    If it is an IPv4 address or a hostname (lettersonly) nothing is changed.
 
     Args:
-        address (str):  address that should be escaped
+        address (str): IP-Address to escape if needed.
 
     Returns:
-        str:            ``address`` in square brackets
+        str: The address, escaped if it is IPv6.
     """
-    if isIPv6Address(address):
-        return '[{}]'.format(address)
-    else:
+    try:
+        ip = ipaddress.ip_address(address)
+    except ValueError:
+        # invalid IP, e.g. a hostname
         return address
+
+    if ip.version == 6:
+        return f'[{address}]'
+
+    return address
+
 
 def camelCase(s):
     """
@@ -1903,18 +1890,20 @@ class UniquenessSet:
     """
     Check for uniqueness or equality of files.
 
-    Args:
-        dc (bool):              if ``True`` use deep check which will compare
-                                files md5sums if they are of same size but no
-                                hardlinks (don't have the same inode).
-                                If ``False`` use files size and mtime
-        follow_symlink (bool):  if ``True`` check symlinks target instead of the
-                                link
-        list_equal_to (str):    full path to file. If not empty only return
-                                equal files to the given path instead of
-                                unique files.
     """
-    def __init__(self, dc = False, follow_symlink = False, list_equal_to = ''):
+    def __init__(self, dc=False, follow_symlink=False, list_equal_to=''):
+        """
+        Args:
+            dc (bool):              if ``True`` use deep check which will compare
+                                    files md5sums if they are of same size but no
+                                    hardlinks (don't have the same inode).
+                                    If ``False`` use files size and mtime
+            follow_symlink (bool):  if ``True`` check symlinks target instead of the
+                                    link
+            list_equal_to (str):    full path to file. If not empty only return
+                                    equal files to the given path instead of
+                                    unique files.
+        """
         self.deep_check = dc
         self.follow_sym = follow_symlink
         self._uniq_dict = {}      # if not self._uniq_dict[size] -> size already checked with md5sum
@@ -2025,20 +2014,17 @@ class Alarm(object):
     (reentrance) or you may cause non-deterministic "random" RTEs.
     """
     def __init__(self, callback = None, overwrite = True):
-        """
-        Create a new alarm instance
+        """Create a new alarm instance
 
         Args:
-            callback: Function to call when the timer ran down
-                      (ensure calling only reentrant code).
-                      Use ``None`` to throw a ``Timeout`` exception instead.
-            overwrite: Is it allowed to (re)start the timer
-                       even though the current timer is still running
-                       ("ticking"):
-                       ``True`` cancels the current timer (if active)
-                                and restarts with the new timeout.
-                       ``False` silently ignores the start request
-                                if the current timer is still "ticking"
+            callback: Function to call when the timer ran down (ensure
+                calling only reentrant code). Use ``None`` to throw a
+                ``Timeout`` exception instead.
+            overwrite: Is it allowed to (re)start the timer even though the
+                current timer is still running ("ticking"). ``True`` cancels
+                the current timer (if active) and restarts with the new
+                timeout. ``False`` silently ignores the start request if the
+                current timer is still "ticking"
         """
         self.callback = callback
         self.ticking = False
@@ -2210,7 +2196,7 @@ class ShutDown(object):
                 sessionbus = dbus.SessionBus()
             systembus  = dbus.SystemBus()
         except:
-            return((None, None))
+            return (None, None)
         des = list(self.DBUS_SHUTDOWN.keys())
         des.sort()
         for de in des:
@@ -2224,23 +2210,23 @@ class ShutDown(object):
                     bus = systembus
                 interface = bus.get_object(dbus_props['service'], dbus_props['objectPath'])
                 proxy = interface.get_dbus_method(dbus_props['method'], dbus_props['interface'])
-                return((proxy, dbus_props['arguments']))
+                return (proxy, dbus_props['arguments'])
             except dbus.exceptions.DBusException:
                 continue
-        return((None, None))
+        return (None, None)
 
     def canShutdown(self):
         """
         Indicate if a valid dbus service is available to shutdown system.
         """
-        return(not self.proxy is None or self.is_root)
+        return not self.proxy is None or self.is_root
 
     def askBeforeQuit(self):
         """
         Indicate if ShutDown is ready to fire and so the application
         shouldn't be closed.
         """
-        return(self.activate_shutdown and not self.started)
+        return self.activate_shutdown and not self.started
 
     def shutdown(self):
         """
@@ -2248,7 +2234,7 @@ class ShutDown(object):
         call the dbus proxy to start the shutdown.
         """
         if not self.activate_shutdown:
-            return(False)
+            return False
 
         if self.is_root:
             self.started = True
@@ -2257,12 +2243,12 @@ class ShutDown(object):
             return proc.returncode
 
         if self.proxy is None:
-            return(False)
+            return False
 
         else:
             self.started = True
 
-            return(self.proxy(*self.args))
+            return self.proxy(*self.args)
 
     def unity7(self):
         """
@@ -2290,14 +2276,18 @@ class SetupUdev(object):
     OBJECT = '/UdevRules'
     INTERFACE = 'net.launchpad.backintime.serviceHelper.UdevRules'
     MEMBERS = ('addRule', 'save', 'delete')
+
     def __init__(self):
         if dbus is None:
             self.isReady = False
+
             return
+
         try:
             bus = dbus.SystemBus()
             conn = bus.get_object(SetupUdev.CONNECTION, SetupUdev.OBJECT)
             self.iface = dbus.Interface(conn, SetupUdev.INTERFACE)
+
         except dbus.exceptions.DBusException as e:
             # Only DBusExceptions are  handled to do a "graceful recovery"
             # by working without a serviceHelper D-Bus connection...
@@ -2306,53 +2296,65 @@ class SetupUdev(object):
             # if e._dbus_error_name in ('org.freedesktop.DBus.Error.NameHasNoOwner',
             #                           'org.freedesktop.DBus.Error.ServiceUnknown',
             #                           'org.freedesktop.DBus.Error.FileNotFound'):
-            logger.warning("Failed to connect to Udev serviceHelper daemon via D-Bus: " + e.get_dbus_name())
-            logger.warning("D-Bus message: " + e.get_dbus_message())
-            logger.warning("Udev-based profiles cannot be changed or checked due to Udev serviceHelper connection failure")
+            logger.warning('Failed to connect to Udev serviceHelper daemon '
+                           'via D-Bus: ' + e.get_dbus_name())
+            logger.warning('D-Bus message: ' + e.get_dbus_message())
+            logger.warning('Udev-based profiles cannot be changed or checked '
+                           'due to Udev serviceHelper connection failure')
             conn = None
+
             # else:
             #     raise
+
         self.isReady = bool(conn)
 
     def addRule(self, cmd, uuid):
-        """
-        Prepare rules in serviceHelper.py
+        """Prepare rules in serviceHelper.py
         """
         if not self.isReady:
             return
+
         try:
             return self.iface.addRule(cmd, uuid)
-        except dbus.exceptions.DBusException as e:
-            if e._dbus_error_name == 'net.launchpad.backintime.InvalidChar':
-                raise InvalidChar(str(e))
-            elif e._dbus_error_name == 'net.launchpad.backintime.InvalidCmd':
-                raise InvalidCmd(str(e))
-            elif e._dbus_error_name == 'net.launchpad.backintime.LimitExceeded':
-                raise LimitExceeded(str(e))
+
+        except dbus.exceptions.DBusException as exc:
+            if exc._dbus_error_name == 'net.launchpad.backintime.InvalidChar':
+                raise InvalidChar(str(exc)) from exc
+
+            elif exc._dbus_error_name == 'net.launchpad.backintime.InvalidCmd':
+                raise InvalidCmd(str(exc)) from exc
+
+            elif exc._dbus_error_name == 'net.launchpad.backintime.LimitExceeded':
+                raise LimitExceeded(str(exc))  from exc
+
             else:
                 raise
 
     def save(self):
-        """
-        Save rules with serviceHelper.py after authentication
+        """Save rules with serviceHelper.py after authentication.
+
         If no rules where added before this will delete current rule.
         """
         if not self.isReady:
             return
+
         try:
             return self.iface.save()
-        except dbus.exceptions.DBusException as e:
-            if e._dbus_error_name == 'com.ubuntu.DeviceDriver.PermissionDeniedByPolicy':
-                raise PermissionDeniedByPolicy(str(e))
+
+        except dbus.exceptions.DBusException as err:
+
+            if err._dbus_error_name == 'com.ubuntu.DeviceDriver.PermissionDeniedByPolicy':
+                raise PermissionDeniedByPolicy(str(err)) from err
+
             else:
-                raise
+                raise err
 
     def clean(self):
-        """
-        Clean up remote cache
+        """Clean up remote cache.
         """
         if not self.isReady:
             return
+
         self.iface.clean()
 
 
@@ -2391,107 +2393,39 @@ class PathHistory(object):
         self.index = 0
 
 
-class OrderedSet(MutableSet):
-    """
-    OrderedSet from Python recipe
-    http://code.activestate.com/recipes/576694/
-    """
-    def __init__(self, iterable=None):
-        self.end = end = []
-        end += [None, end, end]         # sentinel node for doubly linked list
-        self.map = {}                   # key --> [key, prev, next]
-        if iterable is not None:
-            self |= iterable
-
-    def __len__(self):
-        return len(self.map)
-
-    def __contains__(self, key):
-        return key in self.map
-
-    def add(self, key):
-        if key not in self.map:
-            end = self.end
-            curr = end[1]
-            curr[2] = end[1] = self.map[key] = [key, curr, end]
-
-    def discard(self, key):
-        if key in self.map:
-            key, prev, next = self.map.pop(key)
-            prev[2] = next
-            next[1] = prev
-
-    def __iter__(self):
-        end = self.end
-        curr = end[2]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[2]
-
-    def __reversed__(self):
-        end = self.end
-        curr = end[1]
-        while curr is not end:
-            yield curr[0]
-            curr = curr[1]
-
-    def pop(self, last=True):
-        if not self:
-            raise KeyError('set is empty')
-        key = self.end[1][0] if last else self.end[2][0]
-        self.discard(key)
-        return key
-
-    def __repr__(self):
-        if not self:
-            return '%s()' % (self.__class__.__name__,)
-        return '%s(%r)' % (self.__class__.__name__, list(self))
-
-    def __eq__(self, other):
-        if isinstance(other, OrderedSet):
-            return len(self) == len(other) and list(self) == list(other)
-        return set(self) == set(other)
-
-
 class Execute(object):
-    """
-    Execute external commands and handle its output.
+    """Execute external commands and handle its output.
 
     Args:
-
-        cmd (:py:class:`str` or :py:class:`list`):
-                            command with arguments that should be called.
-                            Depending on if this is :py:class:`str` or
-                            :py:class:`list` instance the command will be called
-                            by either :py:func:`os.system` (deprecated) or
-                            :py:class:`subprocess.Popen`
-        callback (method):  function which will handle output returned by
-                            command (e.g. to extract errors)
-        user_data:          extra arguments which will be forwarded to
-                            ``callback`` function (e.g. a tuple - which is
-                            passed by reference in Python - to "return"
-                            results of the callback function as side effect).
-        filters (tuple):    Tuple of functions used to filter messages before
-                            sending them to the ``callback`` function
-        parent (instance):  instance of the calling method used only to proper
-                            format log messages
-        conv_str (bool):    convert output to :py:class:`str` if True or keep it
-                            as :py:class:`bytes` if False
-        join_stderr (bool): join stderr to stdout
+        cmd (list): Command with arguments that should be called.
+            The command will be called by  :py:class:`subprocess.Popen`.
+        callback (method): Function which will handle output returned by
+            command (e.g. to extract errors).
+        user_data: Extra arguments which will be forwarded to ``callback``
+            function (e.g. a ``tuple`` - which is passed by reference in
+            Python - to "return" results of the callback function as side
+            effect).
+        filters (tuple): Tuple of functions used to filter messages before
+            sending them to the ``callback`` function.
+        parent (instance): Instance of the calling method used only to proper
+            format log messages.
+        conv_str (bool): Convert output to :py:class:`str` if ``True`` or keep
+            it as :py:class:`bytes` if ``False``.
+        join_stderr (bool): Join ``stderr`` to ``stdout``.
 
     Note:
-        Signals SIGTSTP ("keyboard stop") and SIGCONT send to Python
-        main process will be forwarded to the command.
-        SIGHUP will kill the process.
+        Signals ``SIGTSTP`` ("keyboard stop") and ``SIGCONT`` send to Python
+        main process will be forwarded to the command. ``SIGHUP`` will kill
+        the process.
     """
     def __init__(self,
                  cmd,
-                 callback = None,
-                 user_data = None,
-                 filters = (),
-                 parent = None,
-                 conv_str = True,
-                 join_stderr = True):
+                 callback=None,
+                 user_data=None,
+                 filters=(),
+                 parent=None,
+                 conv_str=True,
+                 join_stderr=True):
         self.cmd = cmd
         self.callback = callback
         self.user_data = user_data
@@ -2499,169 +2433,149 @@ class Execute(object):
         self.currentProc = None
         self.conv_str = conv_str
         self.join_stderr = join_stderr
-        # we need to forward parent to have the correct class name in debug log
-        if parent:
-            self.parent = parent
-        else:
-            self.parent = self
+        # Need to forward parent to have the correct class name in debug log.
+        self.parent = parent if parent else self
 
-        if isinstance(self.cmd, list):
-            self.pausable = True
-            self.printable_cmd = ' '.join(self.cmd)
-            logger.debug('Call command "%s"' %self.printable_cmd, self.parent, 2)
-        else:
-            self.pausable = False
-            self.printable_cmd = self.cmd
-            logger.warning('Call command with old os.system method "%s"' %self.printable_cmd, self.parent, 2)
+        # Dev note (buhtz, 2024-07): Previous version was calling os.system()
+        # if cmd was a string instead of a list of strings. This is not secure
+        # and to my knowledge and research also not used anymore in BIT.
+        # It is my assumption that the RuntimeError will never be raised. But
+        # let's keep it for some versions to be sure.
+        if not isinstance(self.cmd, list):
+            raise RuntimeError(
+                'Command is a string but should be a list of strings. This '
+                'method is not supported anymore since version 1.5.0. The '
+                'current situation is unexpected. Please open a bug report '
+                'at https://github.com/bit-team/backintime/issues/new/choose '
+                'or report to the projects mailing list '
+                '<bit-dev-join@python.org>.')
+
+        self.pausable = True
+        self.printable_cmd = ' '.join(self.cmd)
+        logger.debug(f'Call command "{self.printable_cmd}"', self.parent, 2)
 
     def run(self):
-        """
-        Start the command.
+        """Run the command using ``subprocess.Popen``.
 
         Returns:
-            int:    return code from the command
+            int: Code from the command.
         """
         ret_val = 0
         out = ''
 
-        # backwards compatibility with old os.system and os.popen calls
-        # TODO Is this still required as the minimal Python version is 3.10++ now?
-        # TODO Which Python versions are considered as "old" here?
-        if isinstance(self.cmd, str):
-            logger.deprecated(self)
-            if self.callback is None:
-                ret_val = os.system(self.cmd)
-            else:
-                pipe = os.popen(self.cmd, 'r')
+        try:
+            # register signals for pause, resume and kill
+            # Forward these signals (sent to the "backintime" process
+            # normally) to the child process ("rsync" normally).
+            # Note: SIGSTOP (unblockable stop) cannot be forwarded because
+            # it cannot be caught in a signal handler!
+            signal.signal(signal.SIGTSTP, self.pause)
+            signal.signal(signal.SIGCONT, self.resume)
+            signal.signal(signal.SIGHUP, self.kill)
 
-                while True:
-                    line = tempFailureRetry(pipe.readline)
-                    if not line:
-                        break
-                    line = line.strip()
-                    for f in self.filters:
-                        line = f(line)
-                    if not line:
-                        continue
-                    self.callback(line, self.user_data)
+        except ValueError:
+            # signal only work in qt main thread
+            # TODO What does this imply?
+            pass
 
-                ret_val = pipe.close()
-                if ret_val is None:
-                    ret_val = 0
+        stderr = subprocess.STDOUT if self.join_stderr else subprocess.DEVNULL
 
-        # new and preferred method using subprocess.Popen
-        # TODO Which minimal Python version is required to be considered as "new"?
-        elif isinstance(self.cmd, (list, tuple)):
-            try:
-                # register signals for pause, resume and kill
-                # Forward these signals (sent to the "backintime" process
-                # normally) to the child process ("rsync" normally).
-                # Note: SIGSTOP (unblockable stop) cannot be forwarded because
-                # it cannot be caught in a signal handler!
-                signal.signal(signal.SIGTSTP, self.pause)
-                signal.signal(signal.SIGCONT, self.resume)
-                signal.signal(signal.SIGHUP, self.kill)
-            except ValueError:
-                # signal only work in qt main thread
-                # TODO What does this imply?
-                pass
+        logger.debug(f"Starting command '{self.printable_cmd}'")
 
-            if self.join_stderr:
-                stderr = subprocess.STDOUT
-            else:
-                stderr = subprocess.DEVNULL
+        self.currentProc = subprocess.Popen(
+            self.cmd, stdout=subprocess.PIPE, stderr=stderr)
 
-            logger.debug(f"Starting command '{self.printable_cmd[:min(16, len(self.printable_cmd))]}...'")
+        # # TEST code for developers to simulate a killed rsync process
+        # if self.printable_cmd.startswith("rsync --recursive"):
+        #     self.currentProc.terminate()  # signal 15 (SIGTERM) like "killall" and "kill" do by default
+        #     # self.currentProc.send_signal(signal.SIGHUP)  # signal 1
+        #     # self.currentProc.kill()  # signal 9
+        #     logger.error("rsync killed for testing purposes during development")
 
-            self.currentProc = subprocess.Popen(self.cmd,
-                                                stdout = subprocess.PIPE,
-                                                stderr = stderr)
+        if self.callback:
 
-            # # TEST code for developers to simulate a killed rsync process
-            # if self.printable_cmd.startswith("rsync --recursive"):
-            #     self.currentProc.terminate()  # signal 15 (SIGTERM) like "killall" and "kill" do by default
-            #     # self.currentProc.send_signal(signal.SIGHUP)  # signal 1
-            #     # self.currentProc.kill()  # signal 9
-            #     logger.error("rsync killed for testing purposes during development")
+            for line in self.currentProc.stdout:
 
-            if self.callback:
-                for line in self.currentProc.stdout:
-                    if self.conv_str:
-                        line = line.decode().rstrip('\n')
-                    else:
-                        line = line.rstrip(b'\n')
-                    for f in self.filters:
-                        line = f(line)
-                    if not line:
-                        continue
-                    self.callback(line, self.user_data)
+                if self.conv_str:
+                    line = line.decode().rstrip('\n')
+                else:
+                    line = line.rstrip(b'\n')
 
-            # We use communicate() instead of wait() to avoid a deadlock
-            # when stdout=PIPE and/or stderr=PIPE and the child process
-            # generates enough output to pipe that it blocks waiting for
-            # free buffer. See also:
-            # https://docs.python.org/3.10/library/subprocess.html#subprocess.Popen.wait
-            out = self.currentProc.communicate()[0]
-            # TODO Why is "out" empty instead of containing all stdout?
-            #      Most probably because Popen was called with a PIPE as stdout
-            #      to directly process each stdout line by calling the callback...
+                for f in self.filters:
+                    line = f(line)
 
-            ret_val = self.currentProc.returncode
-            # TODO ret_val is sometimes 0 instead of e.g. 23 for rsync. Why?
+                if not line:
+                    continue
 
-            try:
-                # reset signal handler to their default
-                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
-                signal.signal(signal.SIGCONT, signal.SIG_DFL)
-                signal.signal(signal.SIGHUP, signal.SIG_DFL)
-            except ValueError:
-                # signal only work in qt main thread
-                # TODO What does this imply?
-                pass
+                self.callback(line, self.user_data)
 
-        if ret_val != 0:
-            msg = 'Command "%s" returns %s%s%s' %(self.printable_cmd, bcolors.WARNING, ret_val, bcolors.ENDC)
+        # We use communicate() instead of wait() to avoid a deadlock
+        # when stdout=PIPE and/or stderr=PIPE and the child process
+        # generates enough output to pipe that it blocks waiting for
+        # free buffer. See also:
+        # https://docs.python.org/3.10/library/subprocess.html#subprocess.Popen.wait
+        out = self.currentProc.communicate()[0]
+
+        # TODO Why is "out" empty instead of containing all stdout?
+        #      Most probably because Popen was called with a PIPE as stdout
+        #      to directly process each stdout line by calling the callback...
+
+        ret_val = self.currentProc.returncode
+        # TODO ret_val is sometimes 0 instead of e.g. 23 for rsync. Why?
+
+        try:
+            # reset signal handler to their default
+            signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+            signal.signal(signal.SIGCONT, signal.SIG_DFL)
+            signal.signal(signal.SIGHUP, signal.SIG_DFL)
+        except ValueError:
+            # signal only work in qt main thread
+            # TODO What does this imply?
+            pass
+
+        if ret_val == 0:
+            msg = f'Command "{self.printable_cmd[:16]}" returns {ret_val}'
             if out:
-                msg += ' | %s' %out.decode().strip('\n')
-            logger.warning(msg, self.parent, 2)
-        else:
-            msg = 'Command "%s..." returns %s' %(self.printable_cmd[:min(16, len(self.printable_cmd))], ret_val)
-            if out:
-                msg += ': %s' %out.decode().strip('\n')
+                msg += ': ' + out.decode().strip('\n')
             logger.debug(msg, self.parent, 2)
+
+        else:
+            msg = f'Command "{self.printable_cmd}" ' \
+                  f'returns {bcolors.WARNING}{ret_val}{bcolors.ENDC}'
+            if out:
+                msg += ' | ' + out.decode().strip('\n')
+            logger.warning(msg, self.parent, 2)
 
         return ret_val
 
     def pause(self, signum, frame):
-        """
-        Slot which will send ``SIGSTOP`` to the command. Is connected to
+        """Slot which will send ``SIGSTOP`` to the command. Is connected to
         signal ``SIGTSTP``.
         """
         if self.pausable and self.currentProc:
-            logger.info('Pause process "%s"' %self.printable_cmd, self.parent, 2)
+            logger.info(
+                f'Pause process "{self.printable_cmd}"', self.parent, 2)
             return self.currentProc.send_signal(signal.SIGSTOP)
 
     def resume(self, signum, frame):
-        """
-        Slot which will send ``SIGCONT`` to the command. Is connected to
+        """Slot which will send ``SIGCONT`` to the command. Is connected to
         signal ``SIGCONT``.
         """
         if self.pausable and self.currentProc:
-            logger.info('Resume process "%s"' %self.printable_cmd, self.parent, 2)
+            logger.info(
+                f'Resume process "{self.printable_cmd}"', self.parent, 2)
             return self.currentProc.send_signal(signal.SIGCONT)
 
     def kill(self, signum, frame):
-        """
-        Slot which will kill the command. Is connected to signal ``SIGHUP``.
+        """Slot which will kill the command. Is connected to signal ``SIGHUP``.
         """
         if self.pausable and self.currentProc:
-            logger.info('Kill process "%s"' %self.printable_cmd, self.parent, 2)
+            logger.info(f'Kill process "{self.printable_cmd}"', self.parent, 2)
             return self.currentProc.kill()
 
 
 class Daemon:
-    """
-    A generic daemon class.
+    """A generic daemon class.
 
     Usage: subclass the Daemon class and override the run() method
 
@@ -2669,7 +2583,12 @@ class Daemon:
     License CC BY-SA 3.0
     http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
     """
-    def __init__(self, pidfile = None, stdin='/dev/null', stdout='/dev/stdout', stderr='/dev/null', umask = 0o022):
+    def __init__(self,
+                 pidfile=None,
+                 stdin='/dev/null',
+                 stdout='/dev/stdout',
+                 stderr='/dev/null',
+                 umask = 0o022):
         self.stdin = stdin
         self.stdout = stdout
         self.stderr = stderr
@@ -2693,6 +2612,7 @@ class Daemon:
             if pid > 0:
                 # exit first parent
                 sys.exit(0)
+
         except OSError as e:
             logger.error("fork #1 failed: %d (%s)" % (e.errno, str(e)), self)
             sys.exit(1)
@@ -2710,6 +2630,7 @@ class Daemon:
             if pid > 0:
                 # exit from second parent
                 sys.exit(0)
+
         except OSError as e:
             logger.error("fork #2 failed: %d (%s)" % (e.errno, str(e)), self)
             sys.exit(1)
@@ -2742,8 +2663,8 @@ class Daemon:
         """
         # Check for a pidfile to see if the daemon already runs
         if self.pidfile and not self.appInstance.check():
-            message = "pidfile %s already exists. Daemon already running?\n"
-            logger.error(message % self.pidfile, self)
+            logger.error(f'pidfile {self.pidfile} already exists. '
+                         'Daemon already running?\n', self)
             sys.exit(1)
 
         # Start the daemon
@@ -2759,103 +2680,75 @@ class Daemon:
             return
 
         # Get the pid from the pidfile
-        pid, procname = self.appInstance.readPidFile()
+        pid = self.appInstance.readPidFile()[0]
 
         if not pid:
             message = "pidfile %s does not exist. Daemon not running?\n"
             logger.error(message % self.pidfile, self)
-            return # not an error in a restart
+            return  # not an error in a restart
 
         # Try killing the daemon process
         try:
             while True:
                 os.kill(pid, signal.SIGTERM)
                 sleep(0.1)
+
         except OSError as err:
             if err.errno == errno.ESRCH:
-                #no such process
+                # No such process
                 self.appInstance.exitApplication()
             else:
                 logger.error(str(err), self)
                 sys.exit(1)
 
     def restart(self):
-        """
-        Restart the daemon
+        """Restart the daemon
         """
         self.stop()
         self.start()
 
     def reload(self):
-        """
-        send SIGHUP signal to process
+        """send SIGHUP signal to process
         """
         if not self.pidfile:
-            logger.debug("Unattended daemon can't be reloaded. No PID file", self)
+            logger.debug(
+                "Unattended daemon can't be reloaded. No PID file", self)
             return
 
         # Get the pid from the pidfile
-        pid, procname = self.appInstance.readPidFile()
+        pid = self.appInstance.readPidFile()[0]
 
         if not pid:
-            message = "pidfile %s does not exist. Daemon not running?\n"
-            logger.error(message % self.pidfile, self)
+            logger.error(f'pidfile {self.pidfile} does not exist. '
+                         'Daemon not running?\n', self)
             return
 
         # Try killing the daemon process
         try:
             os.kill(pid, signal.SIGHUP)
+
         except OSError as err:
+
             if err.errno == errno.ESRCH:
-                #no such process
+                # no such process
                 self.appInstance.exitApplication()
+
             else:
                 sys.stderr.write(str(err))
                 sys.exit(1)
 
     def status(self):
-        """
-        return status
+        """return status
         """
         if not self.pidfile:
-            logger.debug("Unattended daemon can't be checked. No PID file", self)
+            logger.debug(
+                "Unattended daemon can't be checked. No PID file", self)
             return
+
         return not self.appInstance.check()
 
     def run(self):
-        """
-        You should override this method when you subclass Daemon. It will be called after the process has been
-        daemonized by start() or restart().
+        """Override this method when subclass ``Daemon``. It will be called
+        after the process has been daemonized by ``start()`` or ``restart()``.
         """
         pass
-
-# def __logKeyringWarning():
-#
-#     from time import sleep
-#     sleep(0.1)
-#     # TODO This function may not be thread-safe
-#     logger.warning('import keyring failed')
-#
-#
-#
-# if is_keyring_available:
-#
-#     # delay warning to give logger some time to import
-#
-#     # Jan 4, 2024 aryoda:
-#     # This is an assumed work-around for #820 (unhandled exception: NoneType)
-#     # but does not seem to fix the problem.
-#     # So I have refactored the possible name shadowing of "keyring"
-#     # as described in
-#     # https://github.com/bit-team/backintime/issues/820#issuecomment-1472971734
-#     # and left this code unchanged to wait for user feed-back if it works now.
-#     # If the error still occurs I would move the log output call
-#     # to the client of this module so that it is certain to assume it is
-#     # correctly initialized.
-#     # Maybe use backintime.py and app.py for logging...
-#     # (don't call tools.keyringSupported() for that because
-#     # it produces too much debug logging output whenever it is called
-#     # but just query tools.is_keyring_available.
-#     from threading import Thread
-#     thread = Thread(target=__logKeyringWarning, args=())
-#     thread.start()

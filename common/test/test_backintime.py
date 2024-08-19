@@ -18,7 +18,6 @@ import os
 import re
 import subprocess
 import sys
-import unittest
 from test import generic
 import json
 
@@ -32,10 +31,17 @@ class TestBackInTime(generic.TestCase):
     def setUp(self):
         super(TestBackInTime, self).setUp()
 
-    @unittest.skip("--quiet is broken due to some non-filtered logger output")
     def test_quiet_mode(self):
-        output = subprocess.getoutput("python3 backintime.py --quiet")
-        self.assertEqual("", output)
+        output = subprocess.getoutput('python3 backintime.py --quiet')
+
+        # Remove "WARNING:" and "ERROR:" messages from output.
+        # They should appear even in quite-mode.
+        output = filter(lambda line: not line.startswith('WARNING:')
+                        and not line.startswith('ERROR:'),
+                        output.split('\n'))
+        output = '\n'.join(list(output))
+
+        self.assertEqual('', output)
 
     def test_local_snapshot_is_successful(self):
         """From BIT initialization through snapshot
@@ -53,7 +59,7 @@ class TestBackInTime(generic.TestCase):
         and observe the intended behavior.  Heavy refactoring is needed. But
         because of the "level" of that tests it won't happen in the near
         future. Also maintenance costs of this tests are damn high because
-        every tiny modifcation of BIT gives a false fail of this test.
+        every tiny modification of BIT gives a false fail of this test.
 
         Development notes (by Buhtz, 2024-05):
         It is just dumb stdout parsing. I tend to remove this test because of
@@ -250,7 +256,6 @@ under certain conditions; type `backintime --license' for details.
         # so `check_output` does work here (returns only stdout without
         # stderr).
         output = subprocess.check_output(["./backintime", "--diagnostics"])
-        # output = subprocess.getoutput("./backintime --diagnostics")
 
         diagnostics = json.loads(output)
         self.assertEqual(diagnostics["backintime"]["name"],

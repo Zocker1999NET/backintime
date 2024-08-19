@@ -15,7 +15,6 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-import json
 import os
 from pathlib import Path
 import stat
@@ -29,7 +28,6 @@ import subprocess
 import shutil
 import time
 import re
-import fcntl
 from tempfile import TemporaryDirectory
 import config
 import configfile
@@ -39,6 +37,7 @@ import encfstools
 import mount
 import progress
 import snapshotlog
+import flock
 from applicationinstance import ApplicationInstance
 from exceptions import MountException, LastSnapshotSymlink
 
@@ -51,7 +50,7 @@ class Snapshots:
     snapshot in the "application layer". This seems to be the difference to
     the class `SID` which represents a snapshot in the "data layer".
 
-    BUHTZ 2024-02-23: Not sure but it seems to be one concret snapshot and
+    BUHTZ 2024-02-23: Not sure but it seems to be one concrete snapshot and
     not a collection of snapshots. In this case the class name is misleading
     because it is in plural form.
 
@@ -59,7 +58,6 @@ class Snapshots:
         cfg (config.Config): current config
     """
     SNAPSHOT_VERSION = 3
-    GLOBAL_FLOCK = '/tmp/backintime.lock'
 
     def __init__(self, cfg = None):
         self.config = cfg
@@ -83,7 +81,6 @@ class Snapshots:
                                           r'(.*$)')                         #trash at the end
 
         self.lastBusyCheck = datetime.datetime(1, 1, 1)
-        self.flock = None
         self.restorePermissionFailed = False
 
     # TODO: make own class for takeSnapshotMessage
@@ -250,7 +247,7 @@ class Snapshots:
                         callback(msg)
                 else:
                     self.restorePermissionFailed = True
-                    msg = 'Failed to get UID for %s: %s' % (name, str(e))
+                    msg = 'Failed to get UID for %s: %s' %(name, str(e))
                     logger.error(msg, self)
                     if callback:
                         callback(msg)
@@ -704,7 +701,7 @@ class Snapshots:
     #  - Nested "if"s
     #  - Fuzzy names of classes, attributes and methods
     # - unclear variable names (at least for the return values)
-    def backup(self, force = False):
+    def backup(self, force=False):
         """Wrapper for :py:func:`takeSnapshot` which will prepare and clean up
         things for the main :py:func:`takeSnapshot` method.
 
@@ -781,185 +778,194 @@ class Snapshots:
 
                 instance.startApplication()
 
-                # global flock to block backups from other profiles or users
-                # (and run them serialized)
-                self.flockExclusive()
-                logger.info('Lock', self)
+                # Global flock to block backups from other profiles or users
+                # (and run them serialized). The argument "disabled" is a
+                # workaround (#1751) that should be removed/refactored after
+                # this method ("backup()") is refactored.
+                with flock.GlobalFlock(disable=not self.config.globalFlock()):
+                    logger.info('Lock', self)
 
-                now = datetime.datetime.today()
+                    now = datetime.datetime.today()
 
-                # inhibit suspend/hibernate during snapshot is running
-                self.config.inhibitCookie \
-                    = tools.inhibitSuspend(toplevel_xid=self.config.xWindowId)
+                    # inhibit suspend/hibernate during snapshot is running
+                    self.config.inhibitCookie = tools.inhibitSuspend(
+                        toplevel_xid=self.config.xWindowId)
 
-                # mount
-                try:
-                    hash_id = mount.Mount(cfg=self.config).mount()
+                    # mount
+                    try:
+                        hash_id = mount.Mount(cfg=self.config).mount()
 
-                except MountException as ex:
-                    logger.error(str(ex), self)
-                    instance.exitApplication()
-                    logger.info('Unlock', self)
-                    time.sleep(2)
+                    except MountException as ex:
+                        logger.error(str(ex), self)
+                        instance.exitApplication()
+                        logger.info('Unlock', self)
+                        time.sleep(2)
 
-                    return True
-
-                else:
-                    self.config.setCurrentHashId(hash_id)
-
-                include_folders = self.config.include()
-
-                if not include_folders:
-                    logger.info('Nothing to do', self)
-
-                elif not self.config.PLUGIN_MANAGER.processBegin():
-                    logger.info('A plugin prevented the backup', self)
-
-                else:
-                    # take snapshot process begin
-                    self.setTakeSnapshotMessage(0, '...')
-                    self.snapshotLog.new(now)
-
-                    profile_id = self.config.currentProfile()
-                    profile_name = self.config.profileName()
-
-                    logger.info(f"Take a new snapshot. Profile: {profile_id} "
-                                f"{profile_name}", self)
-
-                    if not self.config.canBackup(profile_id):
-
-                        if (self.config.PLUGIN_MANAGER.hasGuiPlugins
-                                and self.config.notify()):
-
-                            message = (
-                                _('Can\'t find snapshots folder.\nIf it is '
-                                  'on a removable drive please plug it in.')
-                                + '\n'
-                                + gettext.ngettext('Waiting %s second.',
-                                                   'Waiting %s seconds.',
-                                                   30) % 30
-                            )
-
-                            self.setTakeSnapshotMessage(
-                                type_id=1,
-                                message=message,
-                                timeout=30)
-
-                        counter = 0
-                        for counter in range(0, 30):
-                            logger.debug(
-                                "Cannot start snapshot yet: target directory "
-                                "not accessible. Waiting 1s.")
-
-                            time.sleep(1)
-
-                            if self.config.canBackup():
-                                break
-
-                        if counter != 0:
-                            logger.info(
-                                f"Waited {counter} seconds for target "
-                                "directory to be available", self)
-
-                    if not self.config.canBackup(profile_id):
-                        logger.warning("Can't find snapshots folder!", self)
-                        # Can't find snapshots directory (is it on a removable
-                        # drive ?)
-                        self.config.PLUGIN_MANAGER.error(3)
+                        return True
 
                     else:
-                        ret_error = False
-                        sid = SID(now, self.config)
+                        self.config.setCurrentHashId(hash_id)
 
-                        if sid.exists():
-                            logger.warning(f'Snapshot path "{sid.path()}" '
-                                           'already exists', self)
-                            # This snapshot already exists
-                            self.config.PLUGIN_MANAGER.error(4, sid)
+                    include_folders = self.config.include()
+
+                    if not include_folders:
+                        logger.info('Nothing to do', self)
+
+                    elif not self.config.PLUGIN_MANAGER.processBegin():
+                        logger.info('A plugin prevented the backup', self)
+
+                    else:
+                        # take snapshot process begin
+                        self.setTakeSnapshotMessage(0, '…')
+                        self.snapshotLog.new(now)
+
+                        profile_id = self.config.currentProfile()
+                        profile_name = self.config.profileName()
+
+                        logger.info(f"Take a new snapshot. Profile: {profile_id} "
+                                    f"{profile_name}", self)
+
+                        if not self.config.canBackup(profile_id):
+
+                            if (self.config.PLUGIN_MANAGER.hasGuiPlugins
+                                    and self.config.notify()):
+
+                                message = (
+                                    _("Can't find snapshots folder.\n"
+                                      "If it is on a removable drive please "
+                                      "plug it in.")
+                                    + '\n'
+                                    + gettext.ngettext('Waiting %s second.',
+                                                       'Waiting %s seconds.',
+                                                       30) % 30
+                                )
+
+                                self.setTakeSnapshotMessage(
+                                    type_id=1,
+                                    message=message,
+                                    timeout=30)
+
+                            counter = 0
+                            for counter in range(0, 30):
+                                logger.debug(
+                                    'Cannot start snapshot yet: target '
+                                    'directory not accessible. Waiting 1s.')
+
+                                time.sleep(1)
+
+                                if self.config.canBackup():
+                                    break
+
+                            if counter != 0:
+                                logger.info(
+                                    f'Waited {counter} seconds for target '
+                                    'directory to be available', self)
+
+                        if not self.config.canBackup(profile_id):
+                            logger.warning(
+                                "Can't find snapshots folder!", self)
+                            # Can't find snapshots directory (is it on a
+                            # removable drive ?)
+                            self.config.PLUGIN_MANAGER.error(3)
 
                         else:
+                            ret_error = False
+                            sid = SID(now, self.config)
 
-                            try:
-                                # TODO
-                                # rename ret_val to new_snapshot_created and
-                                # ret_error to has_error for clearer code
-                                ret_val, ret_error = self.takeSnapshot(
-                                    sid, now, include_folders)
-
-                            except:
-                                new = NewSnapshot(self.config)
-
-                                if new.exists():
-                                    new.saveToContinue = False
-                                    new.failed = True
-
-                                raise
-
-                        if not ret_val:
-                            self.remove(sid)
-
-                            if ret_error:
-                                logger.error('Failed to take snapshot.', self)
-                                msg = _('Failed to take snapshot '
-                                        '{snapshot_id}.').format(
-                                            snapshot_id=sid.displayID)
-                                self.setTakeSnapshotMessage(1, msg)
-                                # Fixes #1491
-                                self.config.PLUGIN_MANAGER.error(5, msg)
-
-                                time.sleep(2)
+                            if sid.exists():
+                                logger.warning(f'Snapshot path "{sid.path()}" '
+                                               'already exists', self)
+                                # This snapshot already exists
+                                self.config.PLUGIN_MANAGER.error(4, sid)
 
                             else:
-                                logger.warning("No new snapshot", self)
 
-                        else:  # new snapshot taken...
+                                try:
+                                    # TODO
+                                    # rename ret_val to new_snapshot_created
+                                    # and ret_error to has_error for clearer
+                                    # code
+                                    ret_val, ret_error = self.takeSnapshot(
+                                        sid, now, include_folders)
 
-                            if ret_error:
-                                logger.error(
-                                    'New snapshot taken but errors detected',
-                                    self)
-                                # Fixes #1491
-                                self.config.PLUGIN_MANAGER.error(
-                                    6, sid.displayID)
+                                except:  # TODO too broad exception
+                                    new = NewSnapshot(self.config)
 
-                            # Why ignore errors now?
-                            ret_error = False
-                            # Probably because a new snapshot has been created
-                            # (= changes transferred) and "continue on errors"
-                            # is enabled
+                                    if new.exists():
+                                        new.saveToContinue = False
+                                        new.failed = True
 
-                        if not ret_error:
-                            self.freeSpace(now)
-                            self.setTakeSnapshotMessage(0, _('Finalizing'))
+                                    raise
 
-                    time.sleep(2)
-                    sleep = False
+                            if not ret_val:
+                                self.remove(sid)
 
-                    if ret_val:
-                        # new snapshot
-                        self.config.PLUGIN_MANAGER.newSnapshot(
-                            sid, sid.path())
+                                if ret_error:
+                                    logger.error(
+                                        'Failed to take snapshot.', self)
+                                    msg = _('Failed to take snapshot '
+                                            '{snapshot_id}.').format(
+                                                snapshot_id=sid.displayID)
+                                    self.setTakeSnapshotMessage(1, msg)
+                                    # Fixes #1491
+                                    self.config.PLUGIN_MANAGER.error(5, msg)
 
-                    # Take snapshot process end
-                    self.config.PLUGIN_MANAGER.processEnd()
+                                    time.sleep(2)
 
-                if sleep:
-                    time.sleep(2)
-                    sleep = False
+                                else:
+                                    logger.warning("No new snapshot", self)
 
-                if not ret_error:
-                    self.clearTakeSnapshotMessage()
+                            else:  # new snapshot taken...
 
-                # unmount
-                try:
-                    mount.Mount(cfg = self.config).umount(self.config.current_hash_id)
+                                if ret_error:
+                                    logger.error('New snapshot taken but '
+                                                 'errors detected',
+                                                 self)
+                                    # Fixes #1491
+                                    self.config.PLUGIN_MANAGER.error(
+                                        6, sid.displayID)
 
-                except MountException as ex:
-                    logger.error(str(ex), self)
+                                # Why ignore errors now?
+                                ret_error = False
+                                # Probably because a new snapshot has been
+                                # created (= changes transferred) and
+                                # "continue on errors" is enabled
 
-                instance.exitApplication()
-                self.flockRelease()
-                logger.info('Unlock', self)
+                            if not ret_error:
+                                self.freeSpace(now)
+                                self.setTakeSnapshotMessage(0, _('Finalizing'))
+
+                        time.sleep(2)
+                        sleep = False
+
+                        if ret_val:
+                            # new snapshot
+                            self.config.PLUGIN_MANAGER.newSnapshot(
+                                sid, sid.path())
+
+                        # Take snapshot process end
+                        self.config.PLUGIN_MANAGER.processEnd()
+
+                    if sleep:
+                        time.sleep(2)
+                        sleep = False
+
+                    if not ret_error:
+                        self.clearTakeSnapshotMessage()
+
+                    # unmount
+                    try:
+                        mount.Mount(cfg=self.config) \
+                             .umount(self.config.current_hash_id)
+
+                    except MountException as ex:
+                        logger.error(str(ex), self)
+
+                    instance.exitApplication()
+                    # self.flockRelease()
+
+                    logger.info('Unlock', self)
+                    # --- END GlobalFlock context ---
 
         if sleep:
             # max 1 backup / second
@@ -997,7 +1003,7 @@ class Snapshots:
                 pg.setStrValue('speed', m.group(3))
                 #pg.setStrValue('eta', m.group(4))
                 pg.save()
-                del(pg)
+                del pg
             else:
                 ret.append(l)
         return '\n'.join(ret)
@@ -1461,7 +1467,7 @@ class Snapshots:
             if prev_sid:
                 prev_sid.setLastChecked()
 
-            if not has_errors and not list(self.config.anacrontabFiles()):
+            if not has_errors:
                 tools.writeTimeStamp(self.config.anacronSpoolFile())
 
             # Part of fix for #1491:
@@ -1509,7 +1515,7 @@ class Snapshots:
 
         self._backup_info_file(sid)
 
-        if not has_errors and not list(self.config.anacrontabFiles()):
+        if not has_errors:
             tools.writeTimeStamp(self.config.anacronSpoolFile())
 
         # create last_snapshot symlink
@@ -1566,7 +1572,7 @@ class Snapshots:
         logger.debug("Keep first >= %s and < %s" %(min_id, max_id), self)
 
         for sid in snapshots:
-            # try to keep the first healty snapshot
+            # try to keep the first healthy snapshot
             if keep_healthy and sid.failed:
                 logger.debug("Do not keep failed snapshot %s" %sid, self)
                 continue
@@ -1818,7 +1824,7 @@ class Snapshots:
                         %del_snapshots, self)
 
             for i, sid in enumerate(del_snapshots, 1):
-                log(_('Smart remove') + ' %s/%s' %(i, len(del_snapshots)))
+                log(_('Smart removal') + ' %s/%s' %(i, len(del_snapshots)))
                 self.remove(sid)
 
     def freeSpace(self, now):
@@ -1870,7 +1876,7 @@ class Snapshots:
         enabled, keep_all, keep_one_per_day, keep_one_per_week, keep_one_per_month = self.config.smartRemove()
 
         if enabled:
-            self.setTakeSnapshotMessage(0, _('Smart remove'))
+            self.setTakeSnapshotMessage(0, _('Smart removal'))
             del_snapshots = self.smartRemoveList(now,
                                                  keep_all,
                                                  keep_one_per_day,
@@ -2023,13 +2029,12 @@ class Snapshots:
                base_sid,
                base_path,
                snapshotsList,
-               list_diff_only  = False,
-               flag_deep_check = False,
-               list_equal_to = ''):
-        """
-        Filter snapshots from ``snapshotsList`` based on whether ``base_path``
-        file is included and optional if the snapshot is unique or equal to
-        ``list_equal_to``.
+               list_diff_only=False,
+               flag_deep_check=False,
+               list_equal_to=''):
+        """Filter snapshots from ``snapshotsList`` based on whether
+        ``base_path`` file is included and optional if the snapshot is unique
+        or equal to ``list_equal_to``.
 
         Args:
             base_sid (SID):         snapshot ID that contained the original
@@ -2058,7 +2063,7 @@ class Snapshots:
         allSnapshotsList = [RootSnapshot(self.config)]
         allSnapshotsList.extend(snapshotsList)
 
-        #links
+        # links
         if os.path.islink(base_full_path):
             targets = []
 
@@ -2066,45 +2071,60 @@ class Snapshots:
                 path = sid.pathBackup(base_path)
 
                 if os.path.lexists(path) and os.path.islink(path):
+
                     if list_diff_only:
                         target = os.readlink(path)
+
                         if target in targets:
                             continue
+
                         targets.append(target)
+
                     snapshotsFiltered.append(sid)
 
             return snapshotsFiltered
 
-        #directories
+        # directories
         if os.path.isdir(base_full_path):
+
             for sid in allSnapshotsList:
                 path = sid.pathBackup(base_path)
 
-                if os.path.exists(path) and not os.path.islink(path) and os.path.isdir(path):
+                if (os.path.exists(path)
+                        and not os.path.islink(path)
+                        and os.path.isdir(path)):
                     snapshotsFiltered.append(sid)
 
             return snapshotsFiltered
 
-        #files
+        # files
         if not list_diff_only and not list_equal_to:
+
             for sid in allSnapshotsList:
                 path = sid.pathBackup(base_path)
 
-                if os.path.exists(path) and not os.path.islink(path) and os.path.isfile(path):
+                if (os.path.exists(path)
+                        and not os.path.islink(path)
+                        and os.path.isfile(path)):
                     snapshotsFiltered.append(sid)
 
             return snapshotsFiltered
 
         # check for duplicates
-        uniqueness = tools.UniquenessSet(flag_deep_check, follow_symlink = False, list_equal_to = list_equal_to)
+        uniqueness = tools.UniquenessSet(
+            flag_deep_check, follow_symlink=False, list_equal_to=list_equal_to)
+
         for sid in allSnapshotsList:
             path = sid.pathBackup(base_path)
-            if os.path.exists(path) and not os.path.islink(path) and os.path.isfile(path) and uniqueness.check(path):
+
+            if (os.path.exists(path)
+                    and not os.path.islink(path)
+                    and os.path.isfile(path)
+                    and uniqueness.check(path)):
                 snapshotsFiltered.append(sid)
 
         return snapshotsFiltered
 
-    #TODO: move this to config.Config -> Don't!
     def rsyncRemotePath(self, path, use_mode = ['ssh', 'ssh_encfs'], quote = '"'):
         """
         Format the destination string for rsync depending on which profile is
@@ -2202,137 +2222,152 @@ class Snapshots:
             logger.error('Failed to create symlink %s: %s' %(symlink, str(e)), self)
             return False
 
-    # TODO Rename to make the purpose obvious, eg: Serialize_[backup|execution]_via_exclusive_global_flock()
-    def flockExclusive(self):
-        """
-        Block :py:func:`backup` from other profiles or users
-        and run them serialized
-        """
-        if self.config.globalFlock():
-            logger.debug('Set flock %s' %self.GLOBAL_FLOCK, self)
-            self.flock = open(self.GLOBAL_FLOCK, 'w')
-            fcntl.flock(self.flock, fcntl.LOCK_EX)  # blocks (waits) until an existing flock is released
-            # make it rw by all if that's not already done.
-            perms = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | \
-                    stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
-            s = os.fstat(self.flock.fileno())
-            if not s.st_mode & perms == perms:
-                logger.debug('Set flock permissions %s' %self.GLOBAL_FLOCK, self)
-                os.fchmod(self.flock.fileno(), perms)
-
-    def flockRelease(self):
-        """
-        Release lock so other snapshots can continue
-        """
-        if self.flock:
-            logger.debug('Release flock %s' %self.GLOBAL_FLOCK, self)
-            fcntl.fcntl(self.flock, fcntl.LOCK_UN)
-            self.flock.close()
-        self.flock = None
-
-    def rsyncSuffix(self, includeFolders = None, excludeFolders = None):
-        """
-        Create suffixes for rsync.
+    def rsyncSuffix(self, includeFolders=None, excludeFolders=None):
+        """Create suffixes for rsync.
 
         Args:
-            includeFolders (list):  folders to include. list of tuples (item, int)
-                                    Where ``int`` is ``0`` if ``item`` is a
-                                    folder or ``1`` if ``item`` is a file
-            excludeFolders (list):  list of folders to exclude
+            includeFolders (list): Folders to include. list of tuples (item,
+                int). Where ``int`` is ``0`` if ``item`` is a folder or ``1``
+                if ``item`` is a file.
+            excludeFolders (list):  List of folders to exclude.
 
         Returns:
-            list:                   rsync include and exclude options
+            (list): Rsync include and exclude options.
         """
-        #create exclude patterns string
+        # Create exclude patterns string
         rsync_exclude = self.rsyncExclude(excludeFolders)
 
-        #create include patterns list
+        # Create include patterns list
         rsync_include, rsync_include2 = self.rsyncInclude(includeFolders)
 
         encode = self.config.ENCODE
+
         ret = ['--chmod=Du+wx']
-        ret.extend(['--exclude=' + i for i in (encode.exclude(self.config.snapshotsPath()),
-                                               encode.exclude(self.config._LOCAL_DATA_FOLDER),
-                                               encode.exclude(self.config._MOUNT_ROOT)
-                                               )])
+        ret.extend([
+            '--exclude=' + i for i in (
+                encode.exclude(self.config.snapshotsPath()),
+                encode.exclude(self.config._LOCAL_DATA_FOLDER),
+                encode.exclude(self.config._MOUNT_ROOT)
+            )
+        ])
         # TODO: fix bug #561:
-        # after rsync_exclude we need to explicitly include files inside excluded
-        # folders, recursive exclude folder-content again and finally add the
-        # rest from rsync_include2
+        # after rsync_exclude we need to explicitly include files inside
+        # excluded folders, recursive exclude folder-content again and finally
+        # add the rest from rsync_include2
         ret.extend(rsync_include)
         ret.extend(rsync_exclude)
         ret.extend(rsync_include2)
         ret.append('--exclude=*')
         ret.append(encode.chroot)
+
         return ret
 
-    def rsyncExclude(self, excludeFolders = None):
-        """
-        Format exclude list for rsync
+    def rsyncExclude(self, excludeFolders=None):
+        """Format exclude list for rsync.
+
+        See `rsyncInclude()` for more details.
 
         Args:
-            excludeFolders (list):  list of folders to exclude
+            excludeFolders (list): List of folders to exclude.
 
         Returns:
-            OrderedSet:             rsync exclude options
+            (list): Rsync exclude options.
         """
-        items = tools.OrderedSet()
+        items = []
         encode = self.config.ENCODE
+
         if excludeFolders is None:
             excludeFolders = self.config.exclude()
 
         for exclude in excludeFolders:
             exclude = encode.exclude(exclude)
+
             if exclude is None:
                 continue
-            items.add('--exclude=' + exclude)
+
+            items.append(f'--exclude={exclude}')
+
         return items
 
-    def rsyncInclude(self, includeFolders = None):
-        """
-        Format include list for rsync. Returns a tuple of two include strings.
-        First string need to come before exclude, second after exclude.
+    def rsyncInclude(self, includeFolders=None):
+        """Format include list for rsync.
+
+        Returns two lists of include strings. First string need to come
+        before exclude, second after exclude.
 
         Args:
-            includeFolders (list):  folders to include. list of
-                                    tuples (item, int) where ``int`` is ``0``
-                                    if ``item`` is a folder or ``1`` if ``item``
-                                    is a file
+            includeFolders (list): Folders to include. List of tuples
+                (item, int) where ``int`` is ``0`` if ``item`` is a folder
+                or ``1`` if ``item`` is a file.
 
         Returns:
-            tuple:                  two item tuple of
-                                    ``(OrderedSet('include1 opions'),
-                                    OrderedSet('include2 options'))``
+            (tuple): Two item tuple of ``(OrderedSet('include1 options'),
+                OrderedSet('include2 options'))``.
         """
-        items1 = tools.OrderedSet()
-        items2 = tools.OrderedSet()
+        # Include items..
+        # ...before the exclude items and...
+        before = []
+        # ...after the exclude items
+        after = []
+
+        # Except for EncFS profiles this does nothing
         encode = self.config.ENCODE
+
         if includeFolders is None:
             includeFolders = self.config.include()
 
         for include_folder in includeFolders:
             folder = include_folder[0]
 
-            if folder == "/":	# If / is selected as included folder it should be changed to ""
-                #folder = ""	# because an extra / is added below. Patch thanks to Martin Hoefling
-                items2.add('--include=/')
-                items2.add('--include=/**')
+            # If / is selected as included folder it should be changed to ""
+            if folder == "/":
+                # folder = ""  # because an extra / is added below.
+                               # Patch thanks to Martin Hoefling
+
+                after.append('--include=/')
+                after.append('--include=/**')
                 continue
 
             folder = encode.include(folder)
+
+            # Folder(0) or file(1)
             if include_folder[1] == 0:
-                items2.add('--include={}/**'.format(folder))
+                after.append('--include={}/**'.format(folder))
             else:
-                items2.add('--include={}'.format(folder))
+                after.append('--include={}'.format(folder))
                 folder = os.path.split(folder)[0]
 
             while True:
                 if len(folder) <= 1:
                     break
-                items1.add('--include={}/'.format(folder))
+                before.append('--include={}/'.format(folder))
                 folder = os.path.split(folder)[0]
 
-        return (items1, items2)
+        # buhtz 2024-07-17:
+        # It is not clear to me why here are two lists generated. But I tested
+        # with this include entries:
+        #     folder: /home/user/Downloads
+        #     file: /home/user/mbox
+        #     file: /home/user/notizen
+        #     file: /home/user/mylock
+        #     folder: /home/user/foo
+        # And this is the result:
+        #
+        #    items1=OrderedSet([
+        #        '--include=/home/user/Downloads/',
+        #        '--include=/home/user/',
+        #        '--include=/home/',
+        #        '--include=/home/user/foo/'
+        #    ])
+        #    items2=OrderedSet([
+        #        '--include=/home/user/Downloads/**',
+        #        '--include=/home/user/mbox',
+        #        '--include=/home/user/notizen',
+        #        '--include=/home/user/mylock',
+        #        '--include=/home/user/foo/**'
+        #    ])
+
+        return (before, after)
 
 
 class FileInfoDict(dict):
@@ -3068,7 +3103,7 @@ def iterSnapshots(cfg, includeNewSnapshot = False):
                 yield sid
 
         # REFACTOR!
-        # LastSnapshotSymlink is an exception instance and could be catched
+        # LastSnapshotSymlink is an exception instance and could be caught
         # explicit. But not sure about its purpose.
         except Exception as e:
             if not isinstance(e, LastSnapshotSymlink):
