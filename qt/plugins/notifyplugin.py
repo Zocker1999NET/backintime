@@ -9,31 +9,19 @@
 # This file is part of the program "Back In Time" which is released under GNU
 # General Public License v2 (GPLv2).
 # See file LICENSE or go to <https://www.gnu.org/licenses/#GPL>.
-import os
+"""Notify plugin module"""
+import getpass
 import dbus
 import pluginmanager
+import logger
 
 
 class NotifyPlugin(pluginmanager.Plugin):
-    def __init__(self):
-        self.user = ''
+    """Plugin used to create notification bubbles in systray.
 
-        try:
-            self.user = os.getlogin()
-        except:
-            pass
-
-        if not self.user:
-            try:
-                self.user = os.environ['USER']
-            except:
-                pass
-
-        if not self.user:
-            try:
-                self.user = os.environ['LOGNAME']
-            except:
-                pass
+    The plugin use DBUS to send notifications. See its base class for more
+    details.
+    """
 
     def isGui(self):
         return True
@@ -47,25 +35,36 @@ class NotifyPlugin(pluginmanager.Plugin):
                 dbus_interface="org.freedesktop.Notifications"
             )
 
-        except dbus.exceptions.DBusException:
+        except dbus.exceptions.DBusException as exc:
+            logger.error('Unexpected DBusException while initating '
+                         f'dbus.Interface(): {exc}')
             return
 
-        if 1 == level:
+        # 1 is ERROR, 0 is INFO
+        if level != 1:
+            # Dev note (2024-10, buhtz):
+            # To my research (using "grep") BIT never use a level value
+            # different from "1".
+            # This level might be a "feature" that was planed but never used.
+            # The level handling then should be removed from BIT.
+            logger.error(
+                f'Unexpected message level "{level}" in NotifyPlugin. The '
+                f'message is: "{message}".')
+            return
 
-            if timeout > 0:
-                timeout = 1000 * timeout
-            else:
-                timeout = -1 # let timeout default to notification server settings
+        if timeout > 0:
+            timeout = 1000 * timeout
+        else:
+            # let timeout default to notification server settings
+            timeout = -1
 
-            title = "Back In Time (%s) : %s" % (self.user, profile_name)
-            message = message.replace("\n", ' ')
-            message = message.replace("\r", '')
+        title = f'Back In Time ({getpass.getuser()}) : {profile_name}'
+        message = message.replace('\n', ' ')
+        message = message.replace('\r', '')
 
-            try:
-                notify_interface.Notify(
-                    "Back In Time", 0, "", title, message, [], {}, timeout)
+        try:
+            notify_interface.Notify(
+                'Back In Time', 0, '', title, message, [], {}, timeout)
 
-            except dbus.exceptions.DBusException:
-                pass
-
-        return
+        except dbus.exceptions.DBusException as exc:
+            logger.error(f'Unexpected DBusException while Notify(): {exc}')
