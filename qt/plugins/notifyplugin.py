@@ -27,6 +27,15 @@ class NotifyPlugin(pluginmanager.Plugin):
         return True
 
     def message(self, profile_id, profile_name, level, message, timeout):
+        # 1 is ERROR, 0 is INFO
+        if level != 1:
+            # Dev note (2024-10, buhtz):
+            # Message with level 0/INFO for example generatet by
+            # setTakeSnapshotMessage()
+            # Not clear to me why the notify plugin should only process
+            # errors.
+            return
+
         try:
             notify_interface = dbus.Interface(
                 object=dbus.SessionBus().get_object(
@@ -38,18 +47,6 @@ class NotifyPlugin(pluginmanager.Plugin):
         except dbus.exceptions.DBusException as exc:
             logger.error('Unexpected DBusException while initating '
                          f'dbus.Interface(): {exc}')
-            return
-
-        # 1 is ERROR, 0 is INFO
-        if level != 1:
-            # Dev note (2024-10, buhtz):
-            # To my research (using "grep") BIT never use a level value
-            # different from "1".
-            # This level might be a "feature" that was planed but never used.
-            # The level handling then should be removed from BIT.
-            logger.error(
-                f'Unexpected message level "{level}" in NotifyPlugin. The '
-                f'message is: "{message}".')
             return
 
         if timeout > 0:
