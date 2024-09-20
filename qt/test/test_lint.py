@@ -269,10 +269,6 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
         # Add py-files
         cmd.extend(self._collect_py_files())
 
-        for p in self._collect_py_files():
-            print(p)
-        print(f'{full_test_files=}')
-
         r = subprocess.run(
             cmd,
             check=False,
