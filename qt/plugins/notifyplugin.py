@@ -7,8 +7,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
 # This file is part of the program "Back In Time" which is released under GNU
-# General Public License v2 (GPLv2).
-# See file LICENSE or go to <https://www.gnu.org/licenses/#GPL>.
+# General Public License v2 (GPLv2). See file/folder LICENSE or go to
+# <https://spdx.org/licenses/GPL-2.0-or-later.html>.
 """Notify plugin module"""
 import getpass
 import dbus
@@ -26,7 +26,13 @@ class NotifyPlugin(pluginmanager.Plugin):
     def isGui(self):
         return True
 
-    def message(self, profile_id, profile_name, level, message, timeout):
+    # pylint: disable-next=too-many-arguments
+    def message(self,  # noqa: PLR0913
+                profile_id,
+                profile_name,
+                level,
+                message,
+                timeout):
         # 1 is ERROR, 0 is INFO
         if level != 1:
             # Dev note (2024-10, buhtz):

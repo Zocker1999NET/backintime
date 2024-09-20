@@ -40,7 +40,7 @@ ANY_LINTER_AVAILABLE = any((
 ))
 
 # Files in this lists will get the full battery of linters and rule sets.
-full_test_files = [pathlib.Path(fp) for fp in (
+full_test_files = [pathlib.Path.cwd() / fp for fp in (
     'bitbase.py',
     'schedule.py',
     'version.py',
@@ -136,9 +136,12 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
         cmd = [
             'ruff',
             'check',
-            # Additionally activate subset of PyLint (PL)
-            # and PyCodestyle (E, W) rules
-            '--extend-select=PL,E,W',
+            # Additionally activate subset of sepcial rules:
+            # - PyLint (PL)
+            # - PyCodestyle (E, W)
+            # - flake8-gettext (INT)
+            # - useless noqua (RUF100)
+            '--extend-select=PL,E,W,INT,RUF100',
             # Ignore: redefined-loop-name
             '--ignore=PLW2901',
             '--line-length', str(PEP8_MAX_LINE_LENGTH),
