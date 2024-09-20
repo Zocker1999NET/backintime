@@ -250,7 +250,6 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
             # Enable asap. This list is selection of existing (not all!)
             # problems currently exiting in the BIT code base. Quit easy to fix
             # because there count is low.
-            # 'R6301',  # no-self-use
             # 'R0202',  # no-classmethod-decorator
             # 'R0203',  # no-staticmethod-decorator
             'R0801',  # duplicate-code
