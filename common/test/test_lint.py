@@ -39,8 +39,11 @@ ANY_LINTER_AVAILABLE = any((
     PYCODESTYLE_AVAILABLE,
 ))
 
+# "common" directory
+_base_dir = pathlib.Path(__file__).resolve().parent.parent
+
 # Files in this lists will get the full battery of linters and rule sets.
-full_test_files = [pathlib.Path.cwd() / fp for fp in (
+full_test_files = [_base_dir / fp for fp in (
     'bitbase.py',
     'schedule.py',
     'version.py',
