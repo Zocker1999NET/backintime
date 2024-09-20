@@ -37,7 +37,8 @@ ANY_LINTER_AVAILABLE = any((
     PYCODESTYLE_AVAILABLE,
 ))
 
-_base_dir = pathlib.Path(__file__).resolve().parent.parent  # "qt"
+# "qt" directory
+_base_dir = pathlib.Path(__file__).resolve().parent.parent
 
 # Files in this lists will get the full battery of linters and rule sets.
 full_test_files = [_base_dir / fp for fp in (
@@ -249,7 +250,7 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
             # Enable asap. This list is selection of existing (not all!)
             # problems currently exiting in the BIT code base. Quit easy to fix
             # because there count is low.
-            # 'R0201',  # no-self-use
+            # 'R6301',  # no-self-use
             # 'R0202',  # no-classmethod-decorator
             # 'R0203',  # no-staticmethod-decorator
             'R0801',  # duplicate-code

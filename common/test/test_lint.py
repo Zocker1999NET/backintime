@@ -254,10 +254,10 @@ class MirrorMirrorOnTheWall(unittest.TestCase):
             'W1515',  # forgotten-debug-statement
             'W4902',  # deprecated-method
             'W4904',  # deprecated-class
-            'R0201',  # no-self-use
             'R0202',  # no-classmethod-decorator
             'R0203',  # no-staticmethod-decorator
             'R0801',  # duplicate-code
+            'R6301',  # no-self-use
 
             # Enable asap. This list is a selection of existing (not all!)
             # problems currently existing in the BIT code base. Quite easy to
