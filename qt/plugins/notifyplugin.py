@@ -51,7 +51,7 @@ class NotifyPlugin(pluginmanager.Plugin):
             )
 
         except dbus.exceptions.DBusException as exc:
-            logger.error('Unexpected DBusException while initating '
+            logger.error('Unexpected DBusException while initiating '
                          f'dbus.Interface(): {exc}')
             return
 
